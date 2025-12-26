@@ -11,12 +11,14 @@ import NavGroup from './NavGroup';
 import menuItems from 'menu-items';
 
 import { useGetMenuMaster } from 'api/menu';
+import { useAuth } from 'contexts/AuthContext';
 
 // ==============================|| SIDEBAR MENU LIST ||============================== //
 
-function MenuList() {
+const MenuList = () => {
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
+  const { isAdmin } = useAuth();
 
   const [selectedID, setSelectedID] = useState('');
 
@@ -39,7 +41,27 @@ function MenuList() {
     }));
   }
 
-  const navItems = menuItems.items.slice(0, lastItemIndex + 1).map((item, index) => {
+  const filteredItems = menuItems.items.filter(item => {
+    // Admin sees everything
+    if (isAdmin) return true;
+
+    // Non-admin only sees tickets group
+    return item.id === 'tickets-group';
+  }).map(item => {
+    // If Admin, return item as is
+    if (isAdmin) return item;
+
+    // If Non-admin, filter children of tickets-group to only show 'Board'
+    if (item.id === 'tickets-group') {
+      return {
+        ...item,
+        children: item.children.filter(child => child.id === 'board')
+      };
+    }
+    return item;
+  });
+
+  const navItems = filteredItems.slice(0, lastItemIndex + 1).map((item, index) => {
     switch (item.type) {
       case 'group':
         if (item.url && item.id !== lastItemId) {

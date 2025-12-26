@@ -48,7 +48,7 @@ const MainContentStyled = styled('main', {
     padding: 16,
     marginTop: 88,
     ...(!open && {
-      width: `calc(100% - ${drawerWidth}px)`
+      width: '100%'
     })
   },
   [theme.breakpoints.down('sm')]: {

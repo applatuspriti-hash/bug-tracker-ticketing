@@ -1,32 +1,34 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // material-ui
 import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import InputLabel from '@mui/material/InputLabel';
 import OutlinedInput from '@mui/material/OutlinedInput';
-import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import FormHelperText from '@mui/material/FormHelperText';
 
 // project imports
 import AnimateButton from 'ui-component/extended/AnimateButton';
 import CustomFormControl from 'ui-component/extended/Form/CustomFormControl';
+import { useAuth } from 'contexts/AuthContext';
 
 // assets
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
-// ===============================|| JWT - LOGIN ||=============================== //
-
 export default function AuthLogin() {
-  const [checked, setChecked] = useState(true);
+  const navigate = useNavigate();
+  const { login, user } = useAuth();
+  // const { users } = useData(); // No longer needed for auth
 
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
   };
@@ -35,20 +37,46 @@ export default function AuthLogin() {
     event.preventDefault();
   };
 
+  // Reactive redirect: Wait for user state to be updated before navigating
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard/default', { replace: true });
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      await login(email, password);
+      // Navigation is handled by useEffect above
+    } catch (err) {
+      console.error(err);
+      setError('Failed to log in: ' + err.message);
+    }
+  };
+
   return (
-    <>
-      <CustomFormControl fullWidth>
-        <InputLabel htmlFor="outlined-adornment-email-login">Email Address / Username</InputLabel>
-        <OutlinedInput id="outlined-adornment-email-login" type="email" value="info@codedthemes.com" name="email" />
+    <form onSubmit={handleSubmit}>
+      <CustomFormControl fullWidth error={Boolean(error)}>
+        <InputLabel htmlFor="outlined-adornment-email-login">Email Address</InputLabel>
+        <OutlinedInput
+          id="outlined-adornment-email-login"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          label="Email Address"
+        />
       </CustomFormControl>
 
-      <CustomFormControl fullWidth>
+      <CustomFormControl fullWidth error={Boolean(error)}>
         <InputLabel htmlFor="outlined-adornment-password-login">Password</InputLabel>
         <OutlinedInput
           id="outlined-adornment-password-login"
           type={showPassword ? 'text' : 'password'}
-          value="123456"
-          name="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           endAdornment={
             <InputAdornment position="end">
               <IconButton
@@ -64,21 +92,9 @@ export default function AuthLogin() {
           }
           label="Password"
         />
+        {error && <FormHelperText error>{error}</FormHelperText>}
       </CustomFormControl>
 
-      <Grid container sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-        <Grid>
-          <FormControlLabel
-            control={<Checkbox checked={checked} onChange={(event) => setChecked(event.target.checked)} name="checked" color="primary" />}
-            label="Keep me logged in"
-          />
-        </Grid>
-        <Grid>
-          <Typography variant="subtitle1" component={Link} to="#!" sx={{ textDecoration: 'none', color: 'secondary.main' }}>
-            Forgot Password?
-          </Typography>
-        </Grid>
-      </Grid>
       <Box sx={{ mt: 2 }}>
         <AnimateButton>
           <Button color="secondary" fullWidth size="large" type="submit" variant="contained">
@@ -86,6 +102,6 @@ export default function AuthLogin() {
           </Button>
         </AnimateButton>
       </Box>
-    </>
+    </form>
   );
 }

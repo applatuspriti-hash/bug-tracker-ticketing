@@ -29,3 +29,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 /.idea/
+
+# User specifically requested to ignore these
+.env
+package-lock.json
+yarn.lock

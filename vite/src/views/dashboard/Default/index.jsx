@@ -16,10 +16,13 @@ import { gridSpacing } from 'store/constant';
 // assets
 import StorefrontTwoToneIcon from '@mui/icons-material/StorefrontTwoTone';
 
+import { useData } from 'contexts/DataContext';
+
 // ==============================|| DEFAULT DASHBOARD ||============================== //
 
 export default function Dashboard() {
   const [isLoading, setLoading] = useState(true);
+  const { tickets, users } = useData();
 
   useEffect(() => {
     setLoading(false);
@@ -30,10 +33,10 @@ export default function Dashboard() {
       <Grid size={12}>
         <Grid container spacing={gridSpacing}>
           <Grid size={{ lg: 4, md: 6, sm: 6, xs: 12 }}>
-            <EarningCard isLoading={isLoading} />
+            <EarningCard isLoading={isLoading} total={tickets.length} />
           </Grid>
           <Grid size={{ lg: 4, md: 6, sm: 6, xs: 12 }}>
-            <TotalOrderLineChartCard isLoading={isLoading} />
+            <TotalOrderLineChartCard isLoading={isLoading} total={users.length} />
           </Grid>
           <Grid size={{ lg: 4, md: 12, sm: 12, xs: 12 }}>
             <Grid container spacing={gridSpacing}>
