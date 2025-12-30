@@ -27,6 +27,7 @@ export default function TicketCreate() {
     const [description, setDescription] = useState('');
     const [assigneeId, setAssigneeId] = useState('');
     const [superBoardId, setSuperBoardId] = useState('');
+    const [priority, setPriority] = useState('medium');
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
 
@@ -67,10 +68,27 @@ export default function TicketCreate() {
             role: 'user',
             images: imageUrl ? [imageUrl] : [],
             status: 'todo',
-            priority: 'medium'
+            priority: priority
         });
 
         navigate('/tickets/board');
+    };
+
+    // Filter users based on selected Super Board
+    const getFilteredUsers = () => {
+        if (!superBoardId) return [];
+        const selectedBoard = superBoards.find(b => b.id === superBoardId);
+        if (!selectedBoard) return [];
+
+        // If the board has explicit assignedUsers, filter by them
+        if (selectedBoard.assignedUsers && selectedBoard.assignedUsers.length > 0) {
+            return users.filter(u => u.role !== 'admin' && selectedBoard.assignedUsers.includes(u.id));
+        }
+
+        // Default or Legacy: Return all non-admins if no explicit assignment
+        // OR as per user request "Only show user list" - if empty, maybe show none? 
+        // We will fallback to all users if nothing is defined to prevent breaking old boards.
+        return users.filter(u => u.role !== 'admin');
     };
 
     return (
@@ -87,6 +105,23 @@ export default function TicketCreate() {
                         placeholder="Eg: Login issue on mobile"
                         InputLabelProps={{ shrink: true }} ss
                     />
+                </Grid>
+
+                {/* Priority (User calls it Status) */}
+                <Grid item xs={12}>
+                    <TextField
+                        fullWidth
+                        size="small"
+                        select
+                        label="Status (Priority)"
+                        value={priority}
+                        onChange={(e) => setPriority(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                    >
+                        <MenuItem value="high" sx={{ color: 'red' }}>High (Red)</MenuItem>
+                        <MenuItem value="medium" sx={{ color: 'deeppink' }}>Medium (Pink)</MenuItem>
+                        <MenuItem value="low" sx={{ color: '#bebe00' }}>Low (Yellow)</MenuItem>
+                    </TextField>
                 </Grid>
 
                 {/* Description */}
@@ -129,8 +164,7 @@ export default function TicketCreate() {
                         <MenuItem value="" disabled>
                             Select User
                         </MenuItem>
-                        {users
-                            .filter((u) => u.role !== 'admin')
+                        {getFilteredUsers()
                             .map((u) => (
                                 <MenuItem key={u.id} value={u.id}>
                                     {u.name}
@@ -180,7 +214,7 @@ export default function TicketCreate() {
                             onClick={handleCreate}
                             disabled={!title || !assigneeId || !superBoardId}
                         >
-                            Create Ticket
+                            Create Ticket 
                         </Button>
                     </Stack>
                 </Grid>

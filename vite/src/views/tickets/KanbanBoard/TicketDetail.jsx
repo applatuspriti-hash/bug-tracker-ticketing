@@ -33,7 +33,10 @@ function TabPanel(props) {
 
 const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, assigneeList, isEdit }) => {
     const { user } = useAuth();
+    const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [assigneeId, setAssigneeId] = useState('');
+    const [priority, setPriority] = useState('medium');
     const [isDescriptionChanged, setIsDescriptionChanged] = useState(false);
     const [newComment, setNewComment] = useState('');
     const [images, setImages] = useState([]);
@@ -43,11 +46,42 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     // Sync state with ticket prop when it opens/changes
     useEffect(() => {
         if (ticket) {
+            setTitle(ticket.title || '');
             setDescription(ticket.description || 'No description provided.');
+            setAssigneeId(ticket.assigneeId || '');
+            setPriority(ticket.priority || 'medium');
             setImages(ticket.images || []);
             setIsDescriptionChanged(false);
         }
     }, [ticket]);
+
+    const handleTitleBlur = async () => {
+        if (ticket && title !== ticket.title) {
+            try {
+                await onUpdateTicket(ticket.id, { title });
+            } catch (error) {
+                console.error('Failed to update title:', error);
+            }
+        }
+    };
+
+    const handleAssigneeChange = async (newAssigneeId) => {
+        setAssigneeId(newAssigneeId);
+        try {
+            await onUpdateTicket(ticket.id, { assigneeId: newAssigneeId });
+        } catch (error) {
+            console.error('Failed to update assignee:', error);
+        }
+    };
+
+    const handlePriorityChange = async (newPriority) => {
+        setPriority(newPriority);
+        try {
+            await onUpdateTicket(ticket.id, { priority: newPriority });
+        } catch (error) {
+            console.error('Failed to update priority:', error);
+        }
+    };
 
     const handleImageUpload = async (event) => {
         const selectedFiles = Array.from(event.target.files);
@@ -167,18 +201,20 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                 py: 3
                             }}
                         >
-                            <Typography
-                                variant="h3"
-                                sx={{
-                                    mb: 3,
-                                    fontWeight: 700,
-                                    lineHeight: 1.3,
-                                    wordBreak: 'break-word',
-                                    overflowWrap: 'break-word'
+                            <TextField
+                                fullWidth
+                                multiline
+                                variant="standard"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                onBlur={handleTitleBlur}
+                                InputProps={{
+                                    readOnly: !isEdit,
+                                    disableUnderline: !isEdit,
+                                    style: { fontSize: '1.5rem', fontWeight: 700 }
                                 }}
-                            >
-                                {ticket.title}
-                            </Typography>
+                                sx={{ mb: 3 }}
+                            />
 
                             <Typography variant="h5" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                                 Description
@@ -395,6 +431,21 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                         </Box>
 
                         <Box sx={{ mb: 3 }}>
+                            <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 1, textTransform: 'uppercase', fontWeight: 600 }}>Priority</Typography>
+                            <Select
+                                value={priority}
+                                onChange={(e) => handlePriorityChange(e.target.value)}
+                                fullWidth
+                                size="small"
+                                sx={{ bgcolor: 'background.paper', fontWeight: 500 }}
+                            >
+                                <MenuItem value="high">High</MenuItem>
+                                <MenuItem value="medium">Medium</MenuItem>
+                                <MenuItem value="low">Low</MenuItem>
+                            </Select>
+                        </Box>
+
+                        <Box sx={{ mb: 3 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                 <Typography variant="h4">Details</Typography>
                                 <IconSettings size={18} color="gray" />
@@ -403,10 +454,25 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                             <Stack spacing={2.5}>
                                 <Box>
                                     <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 0.5 }}>Assignee</Typography>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                        <Avatar src={ticket.assigneeAvatar} sx={{ width: 28, height: 28 }} />
-                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{ticket.assigneeName || 'Unassigned'}</Typography>
-                                    </Box>
+                                    <Select
+                                        value={assigneeId}
+                                        onChange={(e) => handleAssigneeChange(e.target.value)}
+                                        fullWidth
+                                        size="small"
+                                        variant="standard"
+                                        disableUnderline
+                                        sx={{
+                                            fontWeight: 500,
+                                            '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1.5, py: 0.5 }
+                                        }}
+                                    >
+                                        {assigneeList && assigneeList.map((u) => (
+                                            <MenuItem key={u.id} value={u.id}>
+                                                <Avatar src={u.avatar} sx={{ width: 24, height: 24, mr: 1 }} />
+                                                {u.name}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
                                 </Box>
 
                                 <Divider />

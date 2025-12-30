@@ -185,7 +185,7 @@ const KanbanBoard = () => {
         return users.filter(u => boardTicketAssignees.has(u.id));
     }, [users, tickets, filterSuperBoard, availableSuperBoards, userAssignments]);
 
-    const handleTicketClick = (ticket, isEdit = false) => {
+    const handleTicketClick = (ticket, isEdit = true) => {
         // Hydrate with assignee info if needed, though card likely has it
         const richTicket = {
             ...ticket,
@@ -197,7 +197,7 @@ const KanbanBoard = () => {
             epic: ticket.epic || 'EXAMPLE EPIC 1'
         };
         setSelectedTicket(richTicket);
-        setIsEditMode(isEdit);
+        setIsEditMode(true); // Always editable as per request
         setOpenDetail(true);
     };
 
@@ -414,6 +414,7 @@ const KanbanBoard = () => {
                                         onClick={handleTicketClick}
                                         onAssign={handleTicketAssign}
                                         onDelete={handleTicketDelete}
+                                        onUpdateStatus={handleUpdateStatus}
                                         userList={displayedUsers}
                                     />
                                 )}

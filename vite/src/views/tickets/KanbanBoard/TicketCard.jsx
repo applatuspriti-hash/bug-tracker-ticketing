@@ -20,7 +20,53 @@ import Tooltip from '@mui/material/Tooltip';
 
 import { IconCheck, IconDotsVertical, IconTrash, IconEdit, IconPaperclip } from '@tabler/icons-react';
 
-const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList }) => {
+// Status Configuration
+const getStatusConfig = (status) => {
+    switch (status) {
+        case 'todo': return { label: 'TD', color: '#673ab7' }; // Deep Purple
+        case 'inprogress': return { label: 'IP', color: '#2196f3' }; // Blue
+        case 'fixed': return { label: 'F', color: '#00c853' }; // Green
+        case 'blocked': return { label: 'B', color: '#f44336' }; // Red
+        case 'deployed': return { label: 'D', color: '#ff9800' }; // Orange
+        default: return { label: 'TD', color: '#673ab7' };
+    }
+};
+
+const getPriorityColor = (priority, theme) => {
+    switch (priority) {
+        case 'high': return theme.palette.error.main;
+        case 'medium': return theme.palette.warning.main;
+        case 'low': return theme.palette.success.main; // or info.main
+        default: return theme.palette.divider;
+    }
+};
+
+// Helper to calculate time ago
+const getTimeAgo = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    let interval = Math.floor(seconds / 31536000);
+    if (interval >= 1) return interval + (interval === 1 ? " year ago" : " years ago");
+
+    interval = Math.floor(seconds / 2592000);
+    if (interval >= 1) return interval + (interval === 1 ? " month ago" : " months ago");
+
+    interval = Math.floor(seconds / 86400);
+    if (interval >= 1) return interval + (interval === 1 ? " day ago" : " days ago"); // Required format "2 days ago"
+
+    interval = Math.floor(seconds / 3600);
+    if (interval >= 1) return interval + (interval === 1 ? " hour ago" : " hours ago");
+
+    interval = Math.floor(seconds / 60);
+    if (interval >= 1) return interval + (interval === 1 ? " minute ago" : " minutes ago");
+
+    return "Just now";
+};
+
+const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList, onUpdateStatus }) => {
     const theme = useTheme();
 
     // Actions Menu State
@@ -30,6 +76,10 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList }) => {
     // Assign Popover State
     const [assignAnchorEl, setAssignAnchorEl] = useState(null);
     const openAssign = Boolean(assignAnchorEl);
+
+    // Status Menu State
+    const [statusAnchorEl, setStatusAnchorEl] = useState(null);
+    const openStatus = Boolean(statusAnchorEl);
 
     const handleMenuClick = (event) => {
         event.stopPropagation();
@@ -70,6 +120,27 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList }) => {
         setAssignAnchorEl(null);
     };
 
+    // Status Handlers
+    const handleStatusClick = (event) => {
+        event.stopPropagation();
+        setStatusAnchorEl(event.currentTarget);
+    };
+
+    const handleStatusClose = (event) => {
+        event?.stopPropagation();
+        setStatusAnchorEl(null);
+    };
+
+    const handleSelectStatus = (event, newStatus) => {
+        event.stopPropagation();
+        if (onUpdateStatus) onUpdateStatus(ticket.id, newStatus);
+        setStatusAnchorEl(null);
+    };
+
+    const statusConfig = getStatusConfig(ticket.status);
+    const priorityColor = getPriorityColor(ticket.priority, theme);
+    const timeAgo = getTimeAgo(ticket.createdAt);
+
     return (
         <Card
             sx={{
@@ -79,6 +150,7 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList }) => {
                 boxShadow: '0 2px 8px 0 rgba(0,0,0,0.05)',
                 border: '1px solid',
                 borderColor: 'divider',
+                borderLeft: `5px solid ${priorityColor}`, // Visual Priority Indicator
                 cursor: 'pointer',
                 transition: 'all 0.2s ease-in-out',
                 '&:hover': {
@@ -100,9 +172,16 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList }) => {
             <Stack spacing={1.5} sx={{ flexGrow: 1 }}> {/* Main content area that grows */}
                 {/* Header: Number and Menu */}
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                    <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 700, letterSpacing: '0.02em' }}>
-                        {ticket.key || `#${ticket.id}`}
-                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" color="textSecondary" sx={{ fontWeight: 700, letterSpacing: '0.02em' }}>
+                            {ticket.key || `#${ticket.id}`}
+                        </Typography>
+                        {timeAgo && (
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                                • {timeAgo}
+                            </Typography>
+                        )}
+                    </Stack>
                     <IconButton size="small" onClick={handleMenuClick} sx={{ mt: -1, mr: -1 }}>
                         <IconDotsVertical size={16} />
                     </IconButton>
@@ -182,6 +261,35 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList }) => {
                 </Stack>
 
                 <Stack direction="row" alignItems="center" spacing={1}>
+
+                    {/* Status Indicator (Interactive) */}
+                    <Avatar
+                        sx={{
+                            width: 24,
+                            height: 24,
+                            fontSize: '0.65rem',
+                            bgcolor: statusConfig.color,
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            border: '1px solid white'
+                        }}
+                        onClick={handleStatusClick}
+                    >
+                        {statusConfig.label}
+                    </Avatar>
+                    <Menu
+                        anchorEl={statusAnchorEl}
+                        open={openStatus}
+                        onClose={handleStatusClose}
+                    >
+                        <MenuItem onClick={(e) => handleSelectStatus(e, 'todo')}>To Do</MenuItem>
+                        <MenuItem onClick={(e) => handleSelectStatus(e, 'inprogress')}>In Progress</MenuItem>
+                        <MenuItem onClick={(e) => handleSelectStatus(e, 'fixed')}>Fixed</MenuItem>
+                        <MenuItem onClick={(e) => handleSelectStatus(e, 'blocked')}>Blocked</MenuItem>
+                        <MenuItem onClick={(e) => handleSelectStatus(e, 'deployed')}>Deployed</MenuItem>
+                    </Menu>
+
                     {/* Assignee Avatar */}
                     <Avatar
                         src={ticket.assigneeAvatar}
@@ -225,13 +333,17 @@ TicketCard.propTypes = {
         title: PropTypes.string.isRequired,
         epic: PropTypes.string,
         key: PropTypes.string,
+        key: PropTypes.string,
         status: PropTypes.string,
+        priority: PropTypes.string,
         assigneeName: PropTypes.string,
         assigneeAvatar: PropTypes.string,
+        images: PropTypes.array
     }).isRequired,
     onClick: PropTypes.func,
     onAssign: PropTypes.func,
     onDelete: PropTypes.func,
+    onUpdateStatus: PropTypes.func, // Added handler
     userList: PropTypes.array
 };
 

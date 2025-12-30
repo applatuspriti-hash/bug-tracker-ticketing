@@ -142,9 +142,16 @@ export const subscribeToUserProfile = (uid, callback) => {
 
 // --- SUPER BOARD SERVICES ---
 
-export const createSuperBoard = async (name, createdBy) => {
+export const createSuperBoard = async (nameOrData, createdBy) => {
+    let data = {};
+    if (typeof nameOrData === 'object') {
+        data = { ...nameOrData };
+    } else {
+        data = { name: nameOrData };
+    }
+
     return await addDoc(collection(db, "superBoards"), {
-        name,
+        ...data,
         createdBy,
         createdAt: new Date().toISOString()
     });

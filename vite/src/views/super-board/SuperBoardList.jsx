@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // material-ui
-import { Grid, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Card, CardContent, Avatar, Tooltip, Stack, Box, IconButton, Menu, MenuItem, LinearProgress } from '@mui/material';
+import { Grid, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Card, CardContent, Avatar, Tooltip, Stack, Box, IconButton, Menu, MenuItem, LinearProgress, Select, InputLabel, FormControl, Chip, OutlinedInput } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -36,6 +36,7 @@ const SuperBoardList = () => {
 
     const [open, setOpen] = useState(false);
     const [name, setName] = useState('');
+    const [assignedUsers, setAssignedUsers] = useState([]);
     const [editingBoard, setEditingBoard] = useState(null);
 
     // Delete confirm dialog state
@@ -49,6 +50,7 @@ const SuperBoardList = () => {
     const handleOpenCreate = () => {
         setEditingBoard(null);
         setName('');
+        setAssignedUsers([]);
         setOpen(true);
     };
 
@@ -67,7 +69,10 @@ const SuperBoardList = () => {
     const handleMenuEdit = () => {
         if (selectedBoard) {
             setEditingBoard(selectedBoard);
-            setName(selectedBoard.name);
+            // Handle legacy or corrupted data
+            const boardName = typeof selectedBoard.name === 'object' ? selectedBoard.name.name : selectedBoard.name;
+            setName(boardName);
+            setAssignedUsers(selectedBoard.assignedUsers || []);
             setOpen(true);
         }
         handleMenuClose();
@@ -98,15 +103,16 @@ const SuperBoardList = () => {
         if (name.trim()) {
             try {
                 if (editingBoard) {
-                    await updateSuperBoard(editingBoard.id, { name });
+                    await updateSuperBoard(editingBoard.id, { name, assignedUsers });
                     showToast('Super Board updated successfully');
                 } else {
-                    await createSuperBoard(name);
+                    await createSuperBoard({ name, assignedUsers });
                     showToast('Super Board created successfully');
                 }
                 refresh();
                 setOpen(false);
                 setName('');
+                setAssignedUsers([]);
                 setEditingBoard(null);
             } catch (error) {
                 console.error(error);
@@ -138,8 +144,13 @@ const SuperBoardList = () => {
     // But wait, the DataContext logic was also checking "Has Ticket On Board". That's hard server-side.
     // Accepted Trade-off: We show paginated boards. Filter might be looser or absent for now.
 
-    const getAssignedUsersForBoard = (boardId) => {
-        const boardTickets = tickets.filter(t => t.superBoardId === boardId);
+    const getAssignedUsersForBoard = (board) => {
+        // If explicit assignment exists, use it
+        if (board.assignedUsers && board.assignedUsers.length > 0) {
+            return users.filter(u => board.assignedUsers.includes(u.id));
+        }
+        // Fallback to legacy logic (ticket based)
+        const boardTickets = tickets.filter(t => t.superBoardId === board.id);
         const assigneeIds = [...new Set(boardTickets.map(t => t.assigneeId).filter(Boolean))];
         return users.filter(u => assigneeIds.includes(u.uid));
     };
@@ -151,7 +162,7 @@ const SuperBoardList = () => {
             {loading && <LinearProgress sx={{ mb: 2 }} />}
             <Grid container spacing={3}>
                 {visibleBoards.map((board) => {
-                    const assignedUsers = getAssignedUsersForBoard(board.id);
+                    const assignedUsers = getAssignedUsersForBoard(board);
 
                     return (
                         <Grid item xs={12} sm={6} md={4} key={board.id}>
@@ -167,7 +178,10 @@ const SuperBoardList = () => {
                                 )}
 
                                 <CardContent>
-                                    <Typography variant="h3" gutterBottom>{board.name}</Typography>
+                                    <Typography variant="h3" gutterBottom>
+                                        {/* Safeguard against invalid object stored in name */}
+                                        {typeof board.name === 'object' ? (board.name.name || 'Invalid Board Name') : board.name}
+                                    </Typography>
 
                                     <Box sx={{ mt: 2 }}>
                                         <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>Team Members:</Typography>
@@ -231,7 +245,32 @@ const SuperBoardList = () => {
                         fullWidth
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        error={!name}
                     />
+                    <FormControl fullWidth margin="dense">
+                        <InputLabel id="assigned-users-label">Assign Users</InputLabel>
+                        <Select
+                            labelId="assigned-users-label"
+                            multiple
+                            value={assignedUsers}
+                            onChange={(e) => setAssignedUsers(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                            input={<OutlinedInput label="Assign Users" />}
+                            renderValue={(selected) => (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                    {selected.map((value) => {
+                                        const user = users.find(u => u.id === value);
+                                        return <Chip key={value} label={user ? user.name : value} />;
+                                    })}
+                                </Box>
+                            )}
+                        >
+                            {users.map((user) => (
+                                <MenuItem key={user.id} value={user.id}>
+                                    {user.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpen(false)}>Cancel</Button>

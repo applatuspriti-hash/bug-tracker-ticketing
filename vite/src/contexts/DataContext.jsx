@@ -255,9 +255,9 @@ export const DataProvider = ({ children }) => {
         }
     };
 
-    const createSuperBoard = async (name) => {
+    const createSuperBoard = async (boardData) => {
         try {
-            await firebaseCreateSuperBoard(name, user.uid);
+            await firebaseCreateSuperBoard(boardData, user.uid);
             showToast('Super Board created!', 'success');
         } catch (error) {
             showToast('Failed to create Super Board', 'error');

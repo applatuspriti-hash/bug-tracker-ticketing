@@ -35,6 +35,19 @@ export default function TicketCreateDialog({ open, onClose }) {
     const [files, setFiles] = useState([]); // Array of File objects
     const [previews, setPreviews] = useState([]); // Array of { url, type }
     const [isUploading, setIsUploading] = useState(false); // New loading state
+    const [priority, setPriority] = useState('medium'); // Added priority state
+
+    // Filter users based on selected super board
+    const filteredUsers = users.filter(u => {
+        if (u.role === 'admin') return false;
+        if (!superBoardId) return true;
+        const selectedBoard = superBoards.find(b => b.id === superBoardId);
+        // If board has specific assigned users, filter by them
+        if (selectedBoard && selectedBoard.assignedUsers && Array.isArray(selectedBoard.assignedUsers) && selectedBoard.assignedUsers.length > 0) {
+            return selectedBoard.assignedUsers.includes(u.id);
+        }
+        return true;
+    });
 
     useEffect(() => {
         if (open) {
@@ -42,6 +55,7 @@ export default function TicketCreateDialog({ open, onClose }) {
             setTitle('');
             setDescription('');
             setAssigneeId('');
+            setPriority('medium'); // Reset priority
             setFiles([]);
             setPreviews([]);
             setIsUploading(false);
@@ -107,7 +121,7 @@ export default function TicketCreateDialog({ open, onClose }) {
             role: 'user',
             images: attachmentUrls, // This now stores images and videos
             status: 'todo',
-            priority: 'medium'
+            priority: priority // Use selected priority
         });
 
         setIsUploading(false);
@@ -171,7 +185,10 @@ export default function TicketCreateDialog({ open, onClose }) {
                         select
                         label="Super Board"
                         value={superBoardId}
-                        onChange={(e) => setSuperBoardId(e.target.value)}
+                        onChange={(e) => {
+                            setSuperBoardId(e.target.value);
+                            setAssigneeId(''); // Reset assignee when board changes
+                        }}
                         required
                         InputLabelProps={{ shrink: true }}
                         disabled={isUploading}
@@ -196,13 +213,27 @@ export default function TicketCreateDialog({ open, onClose }) {
                         disabled={isUploading}
                     >
                         <MenuItem value="" disabled>Select User</MenuItem>
-                        {users
-                            .filter((u) => u.role !== 'admin')
-                            .map((u) => (
-                                <MenuItem key={u.id} value={u.id}>
-                                    {u.name}
-                                </MenuItem>
-                            ))}
+                        {filteredUsers.map((u) => (
+                            <MenuItem key={u.id} value={u.id}>
+                                {u.name}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+
+                    {/* Priority/Status Dropdown */}
+                    <TextField
+                        fullWidth
+                        size="small"
+                        select
+                        label="Priority"
+                        value={priority}
+                        onChange={(e) => setPriority(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        disabled={isUploading}
+                    >
+                        <MenuItem value="high">High</MenuItem>
+                        <MenuItem value="medium">Medium</MenuItem>
+                        <MenuItem value="low">Low</MenuItem>
                     </TextField>
 
                     {/* Media Upload */}
