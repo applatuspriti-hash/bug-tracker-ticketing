@@ -34,21 +34,31 @@ const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
             sx={{
                 width: '100%',
                 height: '100%',
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#ebedf0',
-                p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#ffebee', // Lighter red for better contrast
                 borderRadius: 2,
+                overflow: 'hidden', // Contain the scrollable area
+                border: '1px solid',
+                borderColor: theme.palette.mode === 'dark' ? 'transparent' : '#ffcdd2',
                 transition: 'all 0.3s ease-in-out',
                 '&:hover': {
-                    bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[900] : '#dfe1e6',
-                    '& .column-header-underline': {
-                        width: '100%'
-                    }
+                    boxShadow: theme.shadows[2]
                 }
             }}
         >
-            <Box sx={{ position: 'relative', mb: 2 }}>
+            {/* Sticky Header Section */}
+            <Box sx={{
+                p: 2,
+                position: 'sticky',
+                top: 0,
+                zIndex: 2,
+                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#ffebee',
+                borderBottom: '1px solid',
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(255,0,0,0.1)'
+            }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="h5" sx={{ mr: 1, textTransform: 'uppercase', color: 'text.secondary', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.05em' }}>
+                    <Typography variant="h5" sx={{ mr: 1, textTransform: 'uppercase', color: 'text.primary', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.05em' }}>
                         {title}
                     </Typography>
                     <Chip
@@ -57,33 +67,52 @@ const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
                         sx={{
                             height: 20,
                             minWidth: 20,
-                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,0,0,0.1)',
                             fontWeight: 700,
                             fontSize: '0.7rem',
+                            color: theme.palette.mode === 'dark' ? 'inherit' : '#d32f2f',
                             '& .MuiChip-label': { px: 1 }
                         }}
                     />
                 </Box>
-                {/* Underline */}
+                {/* Underline indicator */}
                 <Box
                     className="column-header-underline"
                     sx={{
                         height: 3,
-                        width: '40px',
+                        width: '100%', // Full width underlines look better in sticky headers
                         bgcolor: statusColor,
                         borderRadius: 1,
-                        transition: 'width 0.3s ease'
+                        opacity: 0.8
                     }}
                 />
             </Box>
 
-            <Stack spacing={2}>
-                {tickets.map((ticket, index) => (
-                    <Box key={ticket.id || index} sx={{ width: '100%' }}>
-                        {renderTicket(ticket)}
-                    </Box>
-                ))}
-            </Stack>
+            {/* Scrollable Ticket List Area */}
+            <Box sx={{
+                flexGrow: 1,
+                overflowY: 'auto',
+                p: 2,
+                // Custom Scrollbar styling
+                '&::-webkit-scrollbar': {
+                    width: '6px'
+                },
+                '&::-webkit-scrollbar-thumb': {
+                    bgcolor: 'rgba(0,0,0,0.1)',
+                    borderRadius: '10px'
+                },
+                '&::-webkit-scrollbar-thumb:hover': {
+                    bgcolor: 'rgba(0,0,0,0.2)'
+                }
+            }}>
+                <Stack spacing={2}>
+                    {tickets.map((ticket, index) => (
+                        <Box key={ticket.id || index} sx={{ width: '100%' }}>
+                            {renderTicket(ticket)}
+                        </Box>
+                    ))}
+                </Stack>
+            </Box>
         </Box>
     );
 };

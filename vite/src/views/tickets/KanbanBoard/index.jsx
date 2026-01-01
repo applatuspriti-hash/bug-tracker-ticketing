@@ -396,16 +396,36 @@ const KanbanBoard = () => {
             )}
 
             {isMobile ? renderMobileLayout() : (
-                <Box sx={{ display: 'flex', gap: 2, height: '100%', overflowX: 'auto', pb: 1 }}> {/* Use Box with flex instead of Stack for better control */}
+                <Box sx={{
+                    display: 'flex',
+                    gap: 3,
+                    height: 'calc(100% - 60px)', // Subtracting header height
+                    overflowX: 'auto',
+                    pb: 2,
+                    px: 1,
+                    '&::-webkit-scrollbar': {
+                        height: '8px'
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                        bgcolor: 'rgba(0,0,0,0.1)',
+                        borderRadius: '10px'
+                    }
+                }}>
                     {columns.map(col => (
-                        <Box key={col.id} sx={{ flex: '0 0 280px', width: 280, height: '100%' }}> {/* Fixed width for consistency */}
+                        <Box key={col.id} sx={{
+                            flex: '0 0 320px', // Slightly wider for better card spacing
+                            width: 320,
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}>
                             <KanbanColumn
+                                id={col.id} // Passing id for color logic
                                 title={col.title}
                                 tickets={getTicketsForColumn(col.id).map(t => ({
                                     ...t,
                                     assigneeName: users.find(u => u.id === t.assigneeId)?.name,
                                     assigneeAvatar: users.find(u => u.id === t.assigneeId)?.avatar,
-                                    epic: t.epic || 'EXAMPLE EPIC 1',
                                     key: `SMP-${(t.id.toString().split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10000).toString().padStart(4, '0')}`
                                 }))}
                                 renderTicket={(ticket) => (
