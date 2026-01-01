@@ -1,7 +1,7 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { auth } from '../firebase-config';
 import { onAuthStateChanged } from 'firebase/auth';
-import { login as firebaseLogin, logout as firebaseLogout, subscribeToUserProfile } from '../services/firebase';
+import { login as firebaseLogin, logout as firebaseLogout, subscribeToUserProfile, ensureAdminRole } from '../services/firebase';
 
 import Loader from 'ui-component/Loader';
 
@@ -33,8 +33,8 @@ export const AuthProvider = ({ children }) => {
                     let updatedUser;
                     if (profile) {
                         // Checks for admin role
-                        if (firebaseUser.email === 'admin@gmail.com' && profile.role !== 'admin') {
-                            // Auto-fix intentionally omitted to keep logic clean, assumed fixed
+                        if (firebaseUser.email === 'info@applatus.com' && profile.role !== 'admin') {
+                            await ensureAdminRole(firebaseUser.uid, firebaseUser.email);
                         }
                         updatedUser = { ...firebaseUser, ...profile };
                     } else {
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
                         // Auto-create logic if needed
                     }
 
-                    // Sync to State and Storage
+                    // Sync to State and Storage    
                     setUser(updatedUser);
                     localStorage.setItem('berry_user', JSON.stringify(updatedUser));
                     setLoading(false);
@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
-    const isAdmin = user?.role === 'admin' || user?.email === 'admin@gmail.com';
+    const isAdmin = user?.role === 'admin' || user?.email === 'info@applatus.com';
 
     if (loading) return <Loader />;
 

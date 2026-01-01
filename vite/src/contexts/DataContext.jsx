@@ -33,7 +33,7 @@ export const DataProvider = ({ children }) => {
         const email = currentUser.email.toLowerCase();
 
         // Admin or User with both assignments
-        if (email.includes('admin') || (email.includes('user1') && email.includes('user3'))) {
+        if (currentUser.role === 'admin' || email.includes('admin') || email === 'info@applatus.com' || (email.includes('user1') && email.includes('user3'))) {
             return ['ALL'];
         }
 

@@ -13,7 +13,7 @@ const superBoard = {
     children: [
         {
             id: 'super-board',
-            title: 'Super Board',
+            title: 'Management Board',
             type: 'item',
             url: '/super-board',
             icon: icons.IconDashboard,

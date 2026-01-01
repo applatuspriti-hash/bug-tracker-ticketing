@@ -23,6 +23,9 @@ const SuperBoardList = () => {
     const { isAdmin, user } = useAuth();
     const navigate = useNavigate();
 
+    console.log(users, "users")
+
+
     // Pagination
     const { page, limit, handleChangePage, handleChangeRowsPerPage } = usePagination();
     const { data: visibleBoards, totalCount, loading, error, refresh } = useFirestoreQuery('superBoards', {
@@ -264,7 +267,7 @@ const SuperBoardList = () => {
                                 </Box>
                             )}
                         >
-                            {users.map((user) => (
+                            {users.filter(u => u.role !== 'admin').map((user) => (
                                 <MenuItem key={user.id} value={user.id}>
                                     {user.name}
                                 </MenuItem>
