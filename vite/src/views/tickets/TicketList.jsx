@@ -229,7 +229,7 @@ export default function TicketList() {
                 <Stack spacing={2}>
                     {tickets.map((ticket) => {
                         const assignee = users.find(u => u.id === ticket.assigneeId);
-                        const canEdit = isAdmin || ticket.assigneeId === user.id;
+                        const canEdit = true; // Both Admin and User have permission to edit/delete their visible tickets
 
                         return (
                             <Card key={ticket.id} variant="outlined">
@@ -259,11 +259,9 @@ export default function TicketList() {
                                             <Typography variant="body2" color="textSecondary">Assignee: {assignee?.name || 'Unassigned'}</Typography>
                                             <Typography variant="caption" display="block" color="textSecondary">Created: {new Date(ticket.createdAt).toLocaleDateString()}</Typography>
                                         </Box>
-                                        {canEdit && (
-                                            <IconButton onClick={(e) => handleMenuOpen(e, ticket)}>
-                                                <MoreVertIcon />
-                                            </IconButton>
-                                        )}
+                                        <IconButton onClick={(e) => handleMenuOpen(e, ticket)}>
+                                            <MoreVertIcon />
+                                        </IconButton>
                                     </Stack>
                                 </CardContent>
                             </Card>
@@ -288,7 +286,7 @@ export default function TicketList() {
                             {tickets.map((ticket) => {
                                 const assignee = users.find(u => u.id === ticket.assigneeId);
                                 const creator = users.find(u => u.id === ticket.reporterId);
-                                const canEdit = isAdmin || ticket.assigneeId === user.id;
+                                const canEdit = true; // Both Admin and User have permission to edit/delete their visible tickets
 
                                 return (
                                     <TableRow key={ticket.id}>
@@ -319,11 +317,9 @@ export default function TicketList() {
                                         <TableCell>{creator?.name || 'System'}</TableCell>
                                         <TableCell>{new Date(ticket.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell align="right">
-                                            {canEdit && (
-                                                <IconButton size="small" onClick={(e) => handleMenuOpen(e, ticket)}>
-                                                    <MoreVertIcon fontSize="small" />
-                                                </IconButton>
-                                            )}
+                                            <IconButton size="small" onClick={(e) => handleMenuOpen(e, ticket)}>
+                                                <MoreVertIcon fontSize="small" />
+                                            </IconButton>
                                         </TableCell>
                                     </TableRow>
                                 );
@@ -352,13 +348,11 @@ export default function TicketList() {
                 onClose={handleMenuClose}
             >
                 <MenuItem onClick={handleMobileEdit}>
-                    <EditIcon fontSize="small" />
+                    <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit
                 </MenuItem>
-                {isAdmin && (
-                    <MenuItem onClick={handleMobileDelete}>
-                        <DeleteIcon fontSize="small" color="error" />
-                    </MenuItem>
-                )}
+                <MenuItem onClick={handleMobileDelete}>
+                    <DeleteIcon fontSize="small" color="error" sx={{ mr: 1 }} /> Delete
+                </MenuItem>
             </Menu>
 
             <Dialog open={open} onClose={() => setOpen(false)}>

@@ -138,7 +138,7 @@ export default function TicketCreateDialog({ open, onClose }) {
         >
             <DialogTitle sx={{ m: 0, p: 2 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="h4">Create  Ticket</Typography>
+                    <Typography variant="h4">Create Ticket</Typography>
                     <IconButton
                         aria-label="close"
                         onClick={onClose}

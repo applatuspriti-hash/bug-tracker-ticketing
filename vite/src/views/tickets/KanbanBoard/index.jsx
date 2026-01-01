@@ -27,38 +27,19 @@ const KanbanBoard = () => {
     const theme = useTheme();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { tickets, updateTicketStatus, updateTicket, deleteTicket, users, superBoards } = useData();
+    const { tickets, updateTicketStatus, updateTicket, deleteTicket, users, superBoards, isAdmin, userAssignments } = useData();
     const { user } = useAuth();
 
     // State for Filter
     const [filterUser, setFilterUser] = useState('all');
     const [filterSuperBoard, setFilterSuperBoard] = useState('all');
 
-    // Helper to determine user assignments (Mock Logic based on User Request)
-    const getUserAssignments = (currentUser) => {
-        if (!currentUser) return [];
-        const email = currentUser.email.toLowerCase();
 
-        // Admin or User with both assignments
-        if (email.includes('admin') || (email.includes('user1') && email.includes('user3'))) { // Example condition for both
-            return ['ALL']; // Or list both IDs if known. 'ALL' implies access to everything.
-        }
 
-        // Logic based on user request mapping
-        if (email.includes('user1') || email.includes('user2')) return ['BU'];
-        if (email.includes('user3')) return ['SMD'];
 
-        // Default fallback (maybe see everything or nothing?)
-        return ['ALL'];
-    };
 
-    const userAssignments = useMemo(() => getUserAssignments(user), [user]);
-
-    // Filter available SuperBoards based on assignment
-    const availableSuperBoards = useMemo(() => {
-        if (userAssignments.includes('ALL')) return superBoards;
-        return superBoards.filter(sb => userAssignments.includes(sb.name)); // Matching by Name 'BU', 'SMD'
-    }, [superBoards, userAssignments]);
+    // Use superBoards directly as they are already filtered by DataContext
+    const availableSuperBoards = superBoards;
 
     // Sync URL param 'superBoardId' with state and Default Selection
     useEffect(() => {
@@ -73,7 +54,7 @@ const KanbanBoard = () => {
                 // If only one or priority, select it. 
                 // If 'ALL' access, maybe 'all'? Or first one? 
                 // Requirement: "user1 assign bu... user1 login show board onlu show bu"
-                if (userAssignments.includes('ALL')) {
+                if (isAdmin) {
                     setFilterSuperBoard('all');
                 } else {
                     // Auto-select the first available assignment
@@ -137,7 +118,7 @@ const KanbanBoard = () => {
             // But UI restricts the dropdown.
             // If user is restricted to 'BU', availableSuperBoards only has 'BU'.
             // If they somehow selected 'all' (not in dropdown), we should enforce.
-            if (!userAssignments.includes('ALL')) {
+            if (!isAdmin) {
                 const allowedIds = availableSuperBoards.map(sb => sb.id);
                 filtered = filtered.filter(t => allowedIds.includes(t.superBoardId));
             }
@@ -162,7 +143,7 @@ const KanbanBoard = () => {
         }
 
         if (targetBoardId === 'all') {
-            if (userAssignments.includes('ALL')) return users;
+            if (isAdmin) return users;
 
             // Filter users relevant to allowed boards
             const allowedBoardIds = availableSuperBoards.map(sb => sb.id);
@@ -181,6 +162,12 @@ const KanbanBoard = () => {
                 .map(t => t.assigneeId)
                 .filter(Boolean)
         );
+
+        // Also add users explicitly assigned to this board
+        const selectedBoard = superBoards.find(b => b.id === targetBoardId);
+        if (selectedBoard && selectedBoard.assignedUsers && Array.isArray(selectedBoard.assignedUsers)) {
+            selectedBoard.assignedUsers.forEach(id => boardTicketAssignees.add(id));
+        }
 
         return users.filter(u => boardTicketAssignees.has(u.id));
     }, [users, tickets, filterSuperBoard, availableSuperBoards, userAssignments]);
@@ -283,7 +270,7 @@ const KanbanBoard = () => {
                                 label="Board"
                                 onChange={(e) => handleSuperBoardChange(e.target.value)}
                             >
-                                {userAssignments.includes('ALL') && <MenuItem value="all">All</MenuItem>}
+                                {isAdmin && <MenuItem value="all">All</MenuItem>}
                                 {availableSuperBoards.map(sb => (
                                     <MenuItem key={sb.id} value={sb.id}>{sb.name}</MenuItem>
                                 ))}
@@ -358,7 +345,7 @@ const KanbanBoard = () => {
                     <Typography variant="h2">Board</Typography>
                     <Stack direction="row" spacing={2}>
                         <Button variant="contained" onClick={() => setOpenCreate(true)}>
-                            Create Ticket
+                            Create Ticket main
                         </Button>
                         <Stack direction="row" spacing={2} alignItems="center">
                             <FormControl size="small" sx={{ minWidth: 200 }}>
@@ -369,7 +356,7 @@ const KanbanBoard = () => {
                                     label="Filter by Super Board"
                                     onChange={(e) => handleSuperBoardChange(e.target.value)}
                                 >
-                                    {userAssignments.includes('ALL') && <MenuItem value="all">All Boards</MenuItem>}
+                                    {isAdmin && <MenuItem value="all">All Boards</MenuItem>}
                                     {availableSuperBoards.map(sb => (
                                         <MenuItem key={sb.id} value={sb.id}>{sb.name}</MenuItem>
                                     ))}

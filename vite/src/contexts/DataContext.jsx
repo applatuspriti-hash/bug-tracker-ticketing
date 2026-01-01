@@ -183,8 +183,10 @@ export const DataProvider = ({ children }) => {
         const hasTicketOnBoard = assignedTicketBoardIds.has(sb.id);
         // Condition 3: User Created the Board
         const isCreator = sb.createdBy === user?.uid;
+        // Condition 4: User is explicitly assigned to this board
+        const isUserAssigned = sb.assignedUsers && Array.isArray(sb.assignedUsers) && sb.assignedUsers.includes(user?.uid);
 
-        return isGroupAssigned || hasTicketOnBoard || isCreator;
+        return isGroupAssigned || hasTicketOnBoard || isCreator || isUserAssigned;
     }));
 
     // We need the IDs of the visible boards to filter tickets and users
@@ -194,12 +196,21 @@ export const DataProvider = ({ children }) => {
 
     const filteredTickets = loading ? [] : (isAdminOrAll ? tickets : tickets.filter(t => visibleBoardIds.includes(t.superBoardId)));
 
-    // For users, simple logic: Show users who have tickets on visible boards + Admin?
-    // Or just all users for now? Requirement: "Users should not see the user list or other users' boards."
-    // "Only Admin should be able to view the full user list".
-    // So for non-admin, maybe only show users relevant to the tickets?
+    // For users, show users who have tickets on visible boards + Users explicitly assigned to these boards + Admin + Self
+    const boardAssignedUserIds = new Set();
+    filteredSuperBoards.forEach(sb => {
+        if (sb.assignedUsers && Array.isArray(sb.assignedUsers)) {
+            sb.assignedUsers.forEach(id => boardAssignedUserIds.add(id));
+        }
+    });
+
     const relevantUserIds = new Set(filteredTickets.map(t => t.assigneeId).filter(Boolean));
-    const filteredUsers = loading ? [] : (isAdminOrAll ? users : users.filter(u => relevantUserIds.has(u.id) || u.id === user?.uid)); // Always show self
+    const filteredUsers = loading ? [] : (isAdminOrAll ? users : users.filter(u =>
+        relevantUserIds.has(u.id) ||
+        boardAssignedUserIds.has(u.id) ||
+        u.id === user?.uid ||
+        u.role === 'admin'
+    ));
 
     const createUser = async (userData) => {
         // In Firebase, creating a user usually means Authentication Sign Up

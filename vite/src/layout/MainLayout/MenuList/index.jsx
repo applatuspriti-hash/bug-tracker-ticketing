@@ -45,20 +45,10 @@ const MenuList = () => {
     // Admin sees everything
     if (isAdmin) return true;
 
-    // Non-admin only sees tickets group
-    return item.id === 'tickets-group';
-  }).map(item => {
-    // If Admin, return item as is
-    if (isAdmin) return item;
+    // Non-admin cannot see User Management and Super Board management
+    if (item.id === 'users-group' || item.id === 'super-board-group') return false;
 
-    // If Non-admin, filter children of tickets-group to only show 'Board'
-    if (item.id === 'tickets-group') {
-      return {
-        ...item,
-        children: item.children.filter(child => child.id === 'board')
-      };
-    }
-    return item;
+    return true;
   });
 
   const navItems = filteredItems.slice(0, lastItemIndex + 1).map((item, index) => {
