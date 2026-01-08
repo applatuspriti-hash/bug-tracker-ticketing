@@ -24,6 +24,7 @@ export const DataProvider = ({ children }) => {
     const [tickets, setTickets] = useState([]);
     const [superBoards, setSuperBoards] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const { showToast } = useToast();
     const { user, loading: authLoading } = useAuth(); // connection to Auth
 
@@ -159,7 +160,12 @@ export const DataProvider = ({ children }) => {
             unsubscribeUsers();
             unsubscribeSuperBoards();
         };
-    }, [user, authLoading]);
+    }, [user, authLoading, refreshTrigger]);
+
+    const refreshData = () => {
+        setRefreshTrigger(prev => prev + 1);
+        showToast('Refreshing data...', 'info');
+    };
 
     const userAssignments = getUserAssignments(user);
     const isAdminOrAll = userAssignments.includes('ALL');
@@ -328,6 +334,7 @@ export const DataProvider = ({ children }) => {
             deleteSuperBoard,
             updateUser,
             deleteUser,
+            refreshData,
             loading,
             userAssignments, // Exposed for UI helpers if needed
             isAdmin: isAdminOrAll // Exposed for UI helpers

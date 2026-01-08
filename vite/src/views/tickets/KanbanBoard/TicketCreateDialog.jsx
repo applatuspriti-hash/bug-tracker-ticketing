@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import {
     Button,
     TextField,
@@ -22,6 +24,23 @@ import { useData } from 'contexts/DataContext';
 import { uploadFileToS3 } from 'utils/s3Client'; // Changed from firebase
 import { useAuth } from 'contexts/AuthContext';
 
+const quillModules = {
+    toolbar: [
+        ['bold', 'italic', 'underline', 'strike', 'code'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['blockquote', 'code-block'],
+        // ['link'],
+        ['clean']
+    ]
+};
+
+const quillFormats = [
+    'bold', 'italic', 'underline', 'strike', 'code',
+    'list', 'bullet',
+    'blockquote', 'code-block'
+    // 'link'
+];
+
 export default function TicketCreateDialog({ open, onClose }) {
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
@@ -40,14 +59,16 @@ export default function TicketCreateDialog({ open, onClose }) {
 
     // Filter users based on selected super board
     const filteredUsers = users.filter(u => {
-        if (u.role === 'admin') return false;
         if (!superBoardId) return true;
         const selectedBoard = superBoards.find(b => b.id === superBoardId);
-        // If board has specific assigned users, filter by them
-        if (selectedBoard && selectedBoard.assignedUsers && Array.isArray(selectedBoard.assignedUsers) && selectedBoard.assignedUsers.length > 0) {
+
+        // Strictly return only users who are in the assignedUsers list of the board
+        if (selectedBoard && selectedBoard.assignedUsers && Array.isArray(selectedBoard.assignedUsers)) {
             return selectedBoard.assignedUsers.includes(u.id);
         }
-        return true;
+
+        // If no board is found or no users are assigned to it, nobody can be an assignee
+        return false;
     });
 
     useEffect(() => {
@@ -169,17 +190,48 @@ export default function TicketCreateDialog({ open, onClose }) {
                     />
 
                     {/* Description */}
-                    <TextField
-                        fullWidth
-                        multiline
-                        rows={4}
-                        label="Description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Describe the issue clearly..."
-                        InputLabelProps={{ shrink: true }}
-                        disabled={isUploading}
-                    />
+                    <Box sx={{
+                        '& .quill': {
+                            bgcolor: 'background.paper',
+                            borderRadius: '8px',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            overflow: 'hidden'
+                        },
+                        '& .ql-toolbar': {
+                            border: 'none',
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'grey.50'
+                        },
+                        '& .ql-container': {
+                            border: 'none',
+                            minHeight: '200px',
+                            fontSize: '1rem',
+                            fontFamily: 'inherit'
+                        },
+                        '& .ql-editor': {
+                            minHeight: '200px'
+                        },
+                        '& .ql-editor.ql-blank::before': {
+                            left: '15px',
+                            color: 'text.secondary',
+                            fontStyle: 'normal'
+                        }
+                    }}>
+                        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}>
+                            Description
+                        </Typography>
+                        <ReactQuill
+                            theme="snow"
+                            value={description}
+                            onChange={setDescription}
+                            modules={quillModules}
+                            formats={quillFormats}
+                            placeholder="Describe the issue clearly with rich text..."
+                            readOnly={isUploading}
+                        />
+                    </Box>
 
                     {/* Super Board */}
                     <TextField

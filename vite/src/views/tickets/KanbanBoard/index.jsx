@@ -23,12 +23,13 @@ import { useEffect } from 'react';
 import { useToast } from 'contexts/ToastContext';
 import DeleteConfirmDialog from 'ui-component/extended/DeleteConfirmDialog';
 import { DragDropContext } from '@hello-pangea/dnd';
+import { IconRefresh } from '@tabler/icons-react';
 
 const KanbanBoard = () => {
     const theme = useTheme();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { tickets, updateTicketStatus, updateTicket, deleteTicket, users, superBoards, isAdmin, userAssignments } = useData();
+    const { tickets, updateTicketStatus, updateTicket, deleteTicket, users, superBoards, isAdmin, userAssignments, refreshData } = useData();
     const { user } = useAuth();
 
     // State for Filter
@@ -154,6 +155,18 @@ const KanbanBoard = () => {
         return users.filter(u => boardTicketAssignees.has(u.id));
     }, [users, tickets, filterSuperBoard, availableSuperBoards, isAdmin, superBoards]);
 
+    // Helper to get users assigned to a specific board
+    const getBoardUsers = (boardId) => {
+        if (!boardId) return [];
+        const board = superBoards.find(b => b.id === boardId);
+        if (!board) return [];
+
+        if (board.assignedUsers && Array.isArray(board.assignedUsers)) {
+            return users.filter(u => board.assignedUsers.includes(u.id));
+        }
+        return [];
+    };
+
     // Deep linking for tickets
     useEffect(() => {
         const ticketId = searchParams.get('ticketId');
@@ -174,6 +187,34 @@ const KanbanBoard = () => {
             }
         }
     }, [searchParams, tickets, users, selectedTicket]);
+
+    // Sync selectedTicket with latest data from tickets array
+    useEffect(() => {
+        if (selectedTicket) {
+            const latestTicketData = tickets.find(t => t.id === selectedTicket.id);
+            if (latestTicketData) {
+                const richTicket = {
+                    ...latestTicketData,
+                    assigneeName: users.find(u => u.id === latestTicketData.assigneeId)?.name,
+                    assigneeAvatar: users.find(u => u.id === latestTicketData.assigneeId)?.avatar,
+                    reporterName: users.find(u => u.id === latestTicketData.reporterId)?.name,
+                    reporterAvatar: users.find(u => u.id === latestTicketData.reporterId)?.avatar,
+                    epic: latestTicketData.epic || 'EXAMPLE EPIC 1'
+                };
+
+                // Only update if something actually changed (crude check but effective for this case)
+                // We check comments specifically as that was the user's issue
+                const commentsChanged = JSON.stringify(richTicket.comments) !== JSON.stringify(selectedTicket.comments);
+                const imagesChanged = JSON.stringify(richTicket.images) !== JSON.stringify(selectedTicket.images);
+                const statusChanged = richTicket.status !== selectedTicket.status;
+
+                if (commentsChanged || imagesChanged || statusChanged) {
+                    setSelectedTicket(richTicket);
+                }
+            }
+        }
+    }, [tickets, users, selectedTicket]);
+
 
     const handleTicketClick = (ticket, isEdit = true) => {
         const richTicket = {
@@ -312,9 +353,19 @@ const KanbanBoard = () => {
                         </FormControl>
                     </Grid>
                     <Grid item xs={12}>
-                        <Button variant="contained" fullWidth onClick={() => setOpenCreate(true)}>
-                            Create Ticket
-                        </Button>
+                        <Stack direction="row" spacing={1}>
+                            <Button variant="contained" fullWidth onClick={() => setOpenCreate(true)}>
+                                Create Ticket
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                onClick={refreshData}
+                                sx={{ minWidth: 48, p: 0 }}
+                            >
+                                <IconRefresh size={20} />
+                            </Button>
+                        </Stack>
                     </Grid>
                 </Grid>
 
@@ -340,7 +391,7 @@ const KanbanBoard = () => {
                                         onAssign={handleTicketAssign}
                                         onDelete={handleTicketDelete}
                                         onUpdateStatus={handleUpdateStatus}
-                                        userList={displayedUsers}
+                                        userList={getBoardUsers(ticket.superBoardId)}
                                         isAdmin={isAdmin}
                                     />
                                 )}
@@ -407,6 +458,14 @@ const KanbanBoard = () => {
                             <Button variant="contained" onClick={() => setOpenCreate(true)}>
                                 Create Ticket main
                             </Button>
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                startIcon={<IconRefresh size={20} />}
+                                onClick={refreshData}
+                            >
+                                Refresh
+                            </Button>
                         </Stack>
                     </Box>
                 )}
@@ -442,7 +501,7 @@ const KanbanBoard = () => {
                                             onAssign={handleTicketAssign}
                                             onDelete={handleTicketDelete}
                                             onUpdateStatus={handleUpdateStatus}
-                                            userList={displayedUsers}
+                                            userList={getBoardUsers(ticket.superBoardId)}
                                             isAdmin={isAdmin}
                                         />
                                     )}
@@ -458,7 +517,7 @@ const KanbanBoard = () => {
                     ticket={selectedTicket}
                     onUpdateStatus={handleUpdateStatus}
                     onUpdateTicket={updateTicket}
-                    assigneeList={users}
+                    assigneeList={selectedTicket ? getBoardUsers(selectedTicket.superBoardId) : []}
                     isEdit={isEditMode}
                     isAdmin={isAdmin}
                 />

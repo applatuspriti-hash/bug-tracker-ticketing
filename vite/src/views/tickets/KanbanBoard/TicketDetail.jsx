@@ -1,5 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState, useRef, useEffect } from 'react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { useAuth } from 'contexts/AuthContext';
 import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
@@ -22,6 +24,23 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { IconX, IconMaximize, IconPlus, IconSettings, IconShare } from '@tabler/icons-react';
 import { uploadFileToS3 } from 'utils/s3Client';
 import { useToast } from 'contexts/ToastContext';
+
+const quillModules = {
+    toolbar: [
+        ['bold', 'italic', 'underline', 'strike', 'code'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['blockquote', 'code-block'],
+        // ['link'],
+        ['clean']
+    ]
+};
+
+const quillFormats = [
+    'bold', 'italic', 'underline', 'strike', 'code',
+    'list', 'bullet',
+    'blockquote', 'code-block'
+    // 'link'
+];
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -50,6 +69,10 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     const commentFileInputRef = useRef(null);
     const { showToast } = useToast();
 
+
+
+    console.log("ticket",ticket)
+
     const handleShare = () => {
         const url = new URL(window.location.href);
         url.searchParams.set('ticketId', ticket.id);
@@ -62,7 +85,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     useEffect(() => {
         if (ticket) {
             setTitle(ticket.title || '');
-            setDescription(ticket.description || 'No description provided.');
+            setDescription(ticket.description || '');
             setAssigneeId(ticket.assigneeId || '');
             setPriority(ticket.priority || 'medium');
             setImages(ticket.images || []);
@@ -155,7 +178,8 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     };
 
     const handleSaveComment = async () => {
-        if (!newComment.trim() && commentFiles.length === 0) return;
+        const isCommentEmpty = !newComment || newComment === '<p><br></p>' || newComment.trim() === '';
+        if (isCommentEmpty && commentFiles.length === 0) return;
 
         setIsCommenting(true);
         try {
@@ -192,9 +216,17 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
         }
     };
 
-    const handleDescriptionChange = (e) => {
-        setDescription(e.target.value);
-        setIsDescriptionChanged(e.target.value !== ticket.description);
+    const handleDescriptionChange = (content) => {
+        setDescription(content);
+        // Normalize empty Quill content to empty string for comparison
+        const isCurrentlyEmpty = content === '<p><br></p>' || content === '';
+        const wasEmpty = !ticket.description || ticket.description === '<p><br></p>' || ticket.description === '';
+
+        if (isCurrentlyEmpty && wasEmpty) {
+            setIsDescriptionChanged(false);
+        } else {
+            setIsDescriptionChanged(content !== (ticket.description || ''));
+        }
     };
 
     if (!ticket) return null;
@@ -288,29 +320,54 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                 Description
                             </Typography>
 
-                            <TextField
-                                multiline
-                                minRows={4}
-                                fullWidth
-                                variant="outlined"
-                                value={description}
-                                onChange={handleDescriptionChange}
-                                InputProps={{
-                                    readOnly: !isEdit,
-                                }}
-                                sx={{
-                                    mb: 2,
-                                    '& .MuiOutlinedInput-root': {
-                                        bgcolor: isEdit ? 'background.paper' : 'grey.50',
-                                        borderRadius: 2
-                                    }
-                                }}
-                                placeholder="No description provided."
-                            />
+                            <Box sx={{
+                                mb: 2,
+                                '& .quill': {
+                                    bgcolor: isEdit ? 'background.paper' : 'grey.50',
+                                    borderRadius: 2,
+                                    border: isEdit ? '1px solid' : 'none',
+                                    borderColor: 'divider',
+                                    overflow: 'hidden'
+                                },
+                                '& .ql-toolbar': {
+                                    display: isEdit ? 'block' : 'none',
+                                    border: 'none',
+                                    borderBottom: '1px solid',
+                                    borderColor: 'divider',
+                                    bgcolor: 'grey.50'
+                                },
+                                '& .ql-container': {
+                                    border: 'none',
+                                    minHeight: isEdit ? '150px' : 'auto',
+                                    fontSize: '0.95rem',
+                                    fontFamily: 'inherit'
+                                },
+                                '& .ql-editor': {
+                                    minHeight: isEdit ? '150px' : 'auto',
+                                    p: isEdit ? 2 : 0,
+                                    color: 'text.primary'
+                                }
+                            }}>
+                                <ReactQuill
+                                    theme="snow"
+                                    value={description}
+                                    onChange={handleDescriptionChange}
+                                    modules={quillModules}
+                                    formats={quillFormats}
+                                    readOnly={!isEdit}
+                                    placeholder="No description provided."
+                                />
+                            </Box>
 
                             {isEdit && isDescriptionChanged && (
                                 <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end' }}>
-                                    <Button variant="contained" size="small" onClick={handleSaveDescription}>
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        size="medium"
+                                        onClick={handleSaveDescription}
+                                        sx={{ borderRadius: 2, px: 3 }}
+                                    >
                                         Save Changes
                                     </Button>
                                 </Box>
@@ -398,21 +455,40 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
 
                                 {/* New Comment Input */}
                                 <Box sx={{ mb: 4 }}>
-                                    <TextField
-                                        multiline
-                                        minRows={2}
-                                        fullWidth
-                                        placeholder="Add a comment..."
-                                        value={newComment}
-                                        onChange={(e) => setNewComment(e.target.value)}
-                                        disabled={isCommenting}
-                                        sx={{
-                                            mb: 1,
-                                            '& .MuiOutlinedInput-root': {
-                                                borderRadius: 2
-                                            }
-                                        }}
-                                    />
+                                    <Box sx={{
+                                        mb: 1,
+                                        '& .quill': {
+                                            bgcolor: 'background.paper',
+                                            borderRadius: 2,
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            overflow: 'hidden'
+                                        },
+                                        '& .ql-toolbar': {
+                                            border: 'none',
+                                            borderBottom: '1px solid',
+                                            borderColor: 'divider',
+                                            bgcolor: 'grey.50'
+                                        },
+                                        '& .ql-container': {
+                                            border: 'none',
+                                            minHeight: '100px',
+                                            fontSize: '0.9rem'
+                                        },
+                                        '& .ql-editor': {
+                                            minHeight: '100px'
+                                        }
+                                    }}>
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={newComment}
+                                            onChange={setNewComment}
+                                            modules={quillModules}
+                                            formats={quillFormats}
+                                            placeholder="Add a comment..."
+                                            readOnly={isCommenting}
+                                        />
+                                    </Box>
 
                                     {/* Comment Attachments Preview */}
                                     {commentPreviews.length > 0 && (
@@ -503,9 +579,15 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                                         {formatDate(comment.timestamp)}
                                                     </Typography>
                                                 </Stack>
-                                                <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'pre-wrap', mb: comment.attachments?.length > 0 ? 1 : 0 }}>
-                                                    {comment.text}
-                                                </Typography>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        color: 'text.primary',
+                                                        mb: comment.attachments?.length > 0 ? 1 : 0,
+                                                        '& p': { m: 0 }
+                                                    }}
+                                                    dangerouslySetInnerHTML={{ __html: comment.text }}
+                                                />
                                                 {comment.attachments && comment.attachments.length > 0 && (
                                                     <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
                                                         {comment.attachments.map((att, attIndex) => {
@@ -645,9 +727,9 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                     <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 0.5 }}>Reporter</Typography>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                                         <Avatar src={ticket.reporterAvatar} sx={{ width: 28, height: 28, fontSize: '0.75rem' }}>
-                                            {ticket.reporterName ? ticket.reporterName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'R'}
+                                            {ticket.reporterName ? ticket.reporterName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'A'}
                                         </Avatar>
-                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{ticket.reporterName || 'System'}</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>{ticket.reporterName || 'Admin'}</Typography>
                                     </Box>
                                 </Box>
                             </Stack>
