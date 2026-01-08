@@ -45,6 +45,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     const [commentFiles, setCommentFiles] = useState([]);
     const [commentPreviews, setCommentPreviews] = useState([]);
     const [isCommenting, setIsCommenting] = useState(false);
+    const [spendTime, setSpendTime] = useState('');
     const fileInputRef = useRef(null);
     const commentFileInputRef = useRef(null);
     const { showToast } = useToast();
@@ -65,6 +66,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
             setAssigneeId(ticket.assigneeId || '');
             setPriority(ticket.priority || 'medium');
             setImages(ticket.images || []);
+            setSpendTime(ticket.spendTime || '');
             setIsDescriptionChanged(false);
         }
     }, [ticket]);
@@ -94,6 +96,15 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
             await onUpdateTicket(ticket.id, { priority: newPriority });
         } catch (error) {
             console.error('Failed to update priority:', error);
+        }
+    };
+
+    const handleSpendTimeChange = async (newTime) => {
+        setSpendTime(newTime);
+        try {
+            await onUpdateTicket(ticket.id, { spendTime: newTime });
+        } catch (error) {
+            console.error('Failed to update spend time:', error);
         }
     };
 
@@ -581,6 +592,21 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                 <MenuItem value="medium">Medium</MenuItem>
                                 <MenuItem value="low">Low</MenuItem>
                             </Select>
+                        </Box>
+
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 1, textTransform: 'uppercase', fontWeight: 600 }}>Spend Time</Typography>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Eg: 1.5 or 2"
+                                value={spendTime}
+                                onChange={(e) => setSpendTime(e.target.value)}
+                                onBlur={(e) => handleSpendTimeChange(e.target.value)}
+                                InputProps={{
+                                    sx: { bgcolor: 'background.paper', fontWeight: 500 }
+                                }}
+                            />
                         </Box>
 
                         <Box sx={{ mb: 3 }}>

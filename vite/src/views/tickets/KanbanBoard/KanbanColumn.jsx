@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
+import { Droppable } from '@hello-pangea/dnd';
 
 const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
     const theme = useTheme();
@@ -40,7 +41,7 @@ const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#d9dbde', // Lighter red for better contrast
+                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#F2F2F2', // Lighter red for better contrast
                 borderRadius: 2,
                 overflow: 'hidden', // Contain the scrollable area
                 border: '1px solid',
@@ -57,7 +58,7 @@ const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
                 position: 'sticky',
                 top: 0,
                 zIndex: 2,
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#d9dbde',
+                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#F2F2F2',
                 borderBottom: '1px solid',
                 borderColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(255,0,0,0.1)'
             }}>
@@ -93,30 +94,37 @@ const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
             </Box>
 
             {/* Scrollable Ticket List Area */}
-            <Box sx={{
-                flexGrow: 1,
-                overflowY: 'auto',
-                p: 2,
-                // Custom Scrollbar styling
-                '&::-webkit-scrollbar': {
-                    width: '6px'
-                },
-                '&::-webkit-scrollbar-thumb': {
-                    bgcolor: 'rgba(0,0,0,0.1)',
-                    borderRadius: '10px'
-                },
-                '&::-webkit-scrollbar-thumb:hover': {
-                    bgcolor: 'rgba(0,0,0,0.2)'
-                }
-            }}>
-                <Stack spacing={2}>
-                    {tickets.map((ticket, index) => (
-                        <Box key={ticket.id || index} sx={{ width: '100%' }}>
-                            {renderTicket(ticket)}
-                        </Box>
-                    ))}
-                </Stack>
-            </Box>
+            <Droppable droppableId={id}>
+                {(provided, snapshot) => (
+                    <Box
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        sx={{
+                            flexGrow: 1,
+                            overflowY: 'auto',
+                            p: 2,
+                            bgcolor: snapshot.isDraggingOver ? 'action.hover' : 'transparent',
+                            transition: 'background-color 0.2s ease',
+                            // Custom Scrollbar styling
+                            '&::-webkit-scrollbar': {
+                                width: '6px'
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                                bgcolor: 'rgba(0,0,0,0.1)',
+                                borderRadius: '10px'
+                            },
+                            '&::-webkit-scrollbar-thumb:hover': {
+                                bgcolor: 'rgba(0,0,0,0.2)'
+                            }
+                        }}
+                    >
+                        <Stack spacing={2}>
+                            {tickets.map((ticket, index) => renderTicket(ticket, index))}
+                            {provided.placeholder}
+                        </Stack>
+                    </Box>
+                )}
+            </Droppable>
         </Box>
     );
 };

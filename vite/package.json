@@ -9,6 +9,7 @@
     "@fontsource/inter": "5.2.8",
     "@fontsource/poppins": "5.2.7",
     "@fontsource/roboto": "5.2.9",
+    "@hello-pangea/dnd": "^18.0.1",
     "@mui/icons-material": "7.3.5",
     "@mui/material": "7.3.5",
     "@tabler/icons-react": "3.35.0",

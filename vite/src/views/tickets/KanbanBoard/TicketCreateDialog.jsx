@@ -36,6 +36,7 @@ export default function TicketCreateDialog({ open, onClose }) {
     const [previews, setPreviews] = useState([]); // Array of { url, type }
     const [isUploading, setIsUploading] = useState(false); // New loading state
     const [priority, setPriority] = useState('medium'); // Added priority state
+    const [spendTime, setSpendTime] = useState('');
 
     // Filter users based on selected super board
     const filteredUsers = users.filter(u => {
@@ -56,6 +57,7 @@ export default function TicketCreateDialog({ open, onClose }) {
             setDescription('');
             setAssigneeId('');
             setPriority('medium'); // Reset priority
+            setSpendTime('');
             setFiles([]);
             setPreviews([]);
             setIsUploading(false);
@@ -121,7 +123,8 @@ export default function TicketCreateDialog({ open, onClose }) {
             role: 'user',
             images: attachmentUrls, // This now stores images and videos
             status: 'todo',
-            priority: priority // Use selected priority
+            priority: priority, // Use selected priority
+            spendTime: spendTime
         });
 
         setIsUploading(false);
@@ -235,6 +238,18 @@ export default function TicketCreateDialog({ open, onClose }) {
                         <MenuItem value="medium">Medium</MenuItem>
                         <MenuItem value="low">Low</MenuItem>
                     </TextField>
+
+                    {/* Spend Time */}
+                    <TextField
+                        fullWidth
+                        size="small"
+                        label="Spend Time"
+                        value={spendTime}
+                        onChange={(e) => setSpendTime(e.target.value)}
+                        placeholder="Eg: 1.5 or 2"
+                        InputLabelProps={{ shrink: true }}
+                        disabled={isUploading}
+                    />
 
                     {/* Media Upload */}
                     <Stack spacing={2}>
