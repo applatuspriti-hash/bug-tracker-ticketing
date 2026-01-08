@@ -36,6 +36,7 @@ const KanbanBoard = () => {
     const [filterUser, setFilterUser] = useState('all');
     const [filterSuperBoard, setFilterSuperBoard] = useState('all');
     const [filterPriority, setFilterPriority] = useState('all');
+    const [filterType, setFilterType] = useState('all');
 
     // Use superBoards directly as they are already filtered by DataContext
     const availableSuperBoards = superBoards;
@@ -114,6 +115,10 @@ const KanbanBoard = () => {
 
         if (filterPriority !== 'all') {
             filtered = filtered.filter(t => t.priority === filterPriority);
+        }
+
+        if (filterType !== 'all') {
+            filtered = filtered.filter(t => t.type === filterType);
         }
 
         // Sort by updatedAt descending (newest first)
@@ -353,9 +358,23 @@ const KanbanBoard = () => {
                         </FormControl>
                     </Grid>
                     <Grid item xs={12}>
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Type</InputLabel>
+                            <Select
+                                value={filterType}
+                                label="Type"
+                                onChange={(e) => setFilterType(e.target.value)}
+                            >
+                                <MenuItem value="all">All Types</MenuItem>
+                                <MenuItem value="bug">Bug</MenuItem>
+                                <MenuItem value="feature">Feature</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
                         <Stack direction="row" spacing={1}>
                             <Button variant="contained" fullWidth onClick={() => setOpenCreate(true)}>
-                                Create Ticket
+                                Create Ticket 
                             </Button>
                             <Button
                                 variant="outlined"
@@ -409,13 +428,36 @@ const KanbanBoard = () => {
                 height: 'calc(100vh - 100px)',
                 overflowX: isMobile ? 'hidden' : 'auto',
                 p: 2,
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.background.default : '#f4f6f8',
+                bgcolor: theme.palette.mode === 'dark' ? theme.palette.background.default : '#fffff',
                 transition: 'background-color 0.3s ease'
             }}>
                 {!isMobile && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
                         <Typography variant="h2">Board</Typography>
                         <Stack direction="row" spacing={2} alignItems="center">
+                            <Button
+                                variant="outlined"
+                                onClick={refreshData}
+                                sx={{
+                                    minWidth: "42px",
+                                    width: "42px",
+                                    height: "42px",
+                                    padding: 0,
+                                    borderRadius: "6px",
+                                    borderColor: "#dcdcdc",
+                                     backgroundColor: "#f7f7f7",
+                                    color: "#333",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    "&:hover": {
+                                        borderColor: "#bdbdbd",
+                                        backgroundColor: "#f7f7f7",
+                                    },
+                                }}
+                            >
+                                <IconRefresh size={18} />
+                            </Button>
                             <FormControl size="small" sx={{ minWidth: 200 }}>
                                 <InputLabel>Filter by Super Board</InputLabel>
                                 <Select
@@ -423,7 +465,7 @@ const KanbanBoard = () => {
                                     label="Filter by Super Board"
                                     onChange={(e) => handleSuperBoardChange(e.target.value)}
                                 >
-                                    {isAdmin && <MenuItem value="all">All Boards</MenuItem>}
+                                    {isAdmin && <MenuItem value="all">All</MenuItem>}
                                     {availableSuperBoards.map(sb => (
                                         <MenuItem key={sb.id} value={sb.id}>{sb.name}</MenuItem>
                                     ))}
@@ -436,7 +478,7 @@ const KanbanBoard = () => {
                                     label="Filter by Assignee"
                                     onChange={(e) => setFilterUser(e.target.value)}
                                 >
-                                    <MenuItem value="all">All Users</MenuItem>
+                                    <MenuItem value="all">All</MenuItem>
                                     {users.map(u => (
                                         <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>
                                     ))}
@@ -449,23 +491,28 @@ const KanbanBoard = () => {
                                     label="Filter by Priority"
                                     onChange={(e) => setFilterPriority(e.target.value)}
                                 >
-                                    <MenuItem value="all">All Priorities</MenuItem>
+                                    <MenuItem value="all">All </MenuItem>
                                     <MenuItem value="high">High</MenuItem>
                                     <MenuItem value="medium">Medium</MenuItem>
                                     <MenuItem value="low">Low</MenuItem>
                                 </Select>
                             </FormControl>
+                            <FormControl size="small" sx={{ minWidth: 150 }}>
+                                <InputLabel>Filter by Type</InputLabel>
+                                <Select
+                                    value={filterType}
+                                    label="Filter by Type"
+                                    onChange={(e) => setFilterType(e.target.value)}
+                                >
+                                    <MenuItem value="all">All</MenuItem>
+                                    <MenuItem value="bug">Bug</MenuItem>
+                                    <MenuItem value="feature">Feature</MenuItem>
+                                </Select>
+                            </FormControl>
                             <Button variant="contained" onClick={() => setOpenCreate(true)}>
-                                Create Ticket main
+                                Create Ticket
                             </Button>
-                            <Button
-                                variant="outlined"
-                                color="primary"
-                                startIcon={<IconRefresh size={20} />}
-                                onClick={refreshData}
-                            >
-                                Refresh
-                            </Button>
+
                         </Stack>
                     </Box>
                 )}
@@ -504,6 +551,7 @@ const KanbanBoard = () => {
                                             userList={getBoardUsers(ticket.superBoardId)}
                                             isAdmin={isAdmin}
                                         />
+
                                     )}
                                 />
                             </Box>

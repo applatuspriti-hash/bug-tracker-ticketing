@@ -57,6 +57,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     const [description, setDescription] = useState('');
     const [assigneeId, setAssigneeId] = useState('');
     const [priority, setPriority] = useState('medium');
+    const [type, setType] = useState('bug');
     const [isDescriptionChanged, setIsDescriptionChanged] = useState(false);
     const [newComment, setNewComment] = useState('');
     const [images, setImages] = useState([]);
@@ -71,7 +72,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
 
 
 
-    console.log("ticket",ticket)
+    console.log("ticket", ticket)
 
     const handleShare = () => {
         const url = new URL(window.location.href);
@@ -88,6 +89,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
             setDescription(ticket.description || '');
             setAssigneeId(ticket.assigneeId || '');
             setPriority(ticket.priority || 'medium');
+            setType(ticket.type || 'bug');
             setImages(ticket.images || []);
             setSpendTime(ticket.spendTime || '');
             setIsDescriptionChanged(false);
@@ -119,6 +121,15 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
             await onUpdateTicket(ticket.id, { priority: newPriority });
         } catch (error) {
             console.error('Failed to update priority:', error);
+        }
+    };
+
+    const handleTypeChange = async (newType) => {
+        setType(newType);
+        try {
+            await onUpdateTicket(ticket.id, { type: newType });
+        } catch (error) {
+            console.error('Failed to update ticket type:', error);
         }
     };
 
@@ -239,7 +250,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     return (
         <Dialog
             open={open}
-            onClose={onClose}
+            // onClose={onClose}
             maxWidth="lg"
 
             scroll="paper"
@@ -673,6 +684,20 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                 <MenuItem value="high">High</MenuItem>
                                 <MenuItem value="medium">Medium</MenuItem>
                                 <MenuItem value="low">Low</MenuItem>
+                            </Select>
+                        </Box>
+
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 1, textTransform: 'uppercase', fontWeight: 600 }}>Ticket Type</Typography>
+                            <Select
+                                value={type}
+                                onChange={(e) => handleTypeChange(e.target.value)}
+                                fullWidth
+                                size="small"
+                                sx={{ bgcolor: 'background.paper', fontWeight: 500 }}
+                            >
+                                <MenuItem value="bug">Bug</MenuItem>
+                                <MenuItem value="feature">Feature</MenuItem>
                             </Select>
                         </Box>
 

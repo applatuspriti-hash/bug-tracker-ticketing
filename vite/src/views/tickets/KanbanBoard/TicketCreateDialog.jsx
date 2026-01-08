@@ -56,6 +56,7 @@ export default function TicketCreateDialog({ open, onClose }) {
     const [isUploading, setIsUploading] = useState(false); // New loading state
     const [priority, setPriority] = useState('medium'); // Added priority state
     const [spendTime, setSpendTime] = useState('');
+    const [type, setType] = useState('bug'); // Added ticket type (bug/feature)
 
     // Filter users based on selected super board
     const filteredUsers = users.filter(u => {
@@ -79,6 +80,7 @@ export default function TicketCreateDialog({ open, onClose }) {
             setAssigneeId('');
             setPriority('medium'); // Reset priority
             setSpendTime('');
+            setType('bug'); // Reset type
             setFiles([]);
             setPreviews([]);
             setIsUploading(false);
@@ -145,7 +147,8 @@ export default function TicketCreateDialog({ open, onClose }) {
             images: attachmentUrls, // This now stores images and videos
             status: 'todo',
             priority: priority, // Use selected priority
-            spendTime: spendTime
+            spendTime: spendTime,
+            type: type // Use selected type
         });
 
         setIsUploading(false);
@@ -155,14 +158,14 @@ export default function TicketCreateDialog({ open, onClose }) {
     return (
         <Dialog
             open={open}
-            onClose={!isUploading ? onClose : undefined} // Prevent closing while uploading
+            // onClose={!isUploading ? onClose : undefined} // Prevent closing while uploading
             maxWidth="md"
             fullWidth
             fullScreen={fullScreen}
         >
             <DialogTitle sx={{ m: 0, p: 2 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="h4">Create Ticket</Typography>
+                    <Typography variant="h4">Create Ticket </Typography>
                     <IconButton
                         aria-label="close"
                         onClick={onClose}
@@ -233,75 +236,105 @@ export default function TicketCreateDialog({ open, onClose }) {
                         />
                     </Box>
 
-                    {/* Super Board */}
-                    <TextField
-                        fullWidth
-                        size="small"
-                        select
-                        label="Super Board"
-                        value={superBoardId}
-                        onChange={(e) => {
-                            setSuperBoardId(e.target.value);
-                            setAssigneeId(''); // Reset assignee when board changes
-                        }}
-                        required
-                        InputLabelProps={{ shrink: true }}
-                        disabled={isUploading}
-                    >
-                        <MenuItem value="" disabled>Select Board</MenuItem>
-                        {superBoards.map((board) => (
-                            <MenuItem key={board.id} value={board.id}>
-                                {board.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                    {/* Grid for other fields */}
+                    <Grid container spacing={2}>
+                        {/* Super Board */}
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                select
+                                label="Super Board"
+                                value={superBoardId}
+                                onChange={(e) => {
+                                    setSuperBoardId(e.target.value);
+                                    setAssigneeId(''); // Reset assignee when board changes
+                                }}
+                                required
+                                InputLabelProps={{ shrink: true }}
+                                disabled={isUploading}
+                                SelectProps={{ displayEmpty: true }}
+                            >
+                                <MenuItem value="">Select Board</MenuItem>
+                                {superBoards.map((board) => (
+                                    <MenuItem key={board.id} value={board.id}>
+                                        {board.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
 
-                    {/* Assignee */}
-                    <TextField
-                        fullWidth
-                        size="small"
-                        select
-                        label="Assign To"
-                        value={assigneeId}
-                        onChange={(e) => setAssigneeId(e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                        disabled={isUploading}
-                    >
-                        <MenuItem value="" disabled>Select User</MenuItem>
-                        {filteredUsers.map((u) => (
-                            <MenuItem key={u.id} value={u.id}>
-                                {u.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                        {/* Assignee */}
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                select
+                                label="Assign To"
+                                value={assigneeId}
+                                onChange={(e) => setAssigneeId(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                                disabled={isUploading}
+                                SelectProps={{ displayEmpty: true }}
+                            >
+                                <MenuItem value="">Select User</MenuItem>
+                                {filteredUsers.map((u) => (
+                                    <MenuItem key={u.id} value={u.id}>
+                                        {u.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
 
-                    {/* Priority/Status Dropdown */}
-                    <TextField
-                        fullWidth
-                        size="small"
-                        select
-                        label="Priority"
-                        value={priority}
-                        onChange={(e) => setPriority(e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                        disabled={isUploading}
-                    >
-                        <MenuItem value="high">High</MenuItem>
-                        <MenuItem value="medium">Medium</MenuItem>
-                        <MenuItem value="low">Low</MenuItem>
-                    </TextField>
+                        {/* Priority */}
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                select
+                                label="Priority"
+                                value={priority}
+                                onChange={(e) => setPriority(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                                disabled={isUploading}
+                            >
+                                <MenuItem value="high">High</MenuItem>
+                                <MenuItem value="medium">Medium</MenuItem>
+                                <MenuItem value="low">Low</MenuItem>
+                            </TextField>
+                        </Grid>
 
-                    {/* Spend Time */}
-                    <TextField
-                        fullWidth
-                        size="small"
-                        label="Spend Time"
-                        value={spendTime}
-                        onChange={(e) => setSpendTime(e.target.value)}
-                        placeholder="Eg: 1.5 or 2"
-                        InputLabelProps={{ shrink: true }}
-                        disabled={isUploading}
-                    />
+                        {/* Ticket Type (Bug/Feature) */}
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                select
+                                label="Ticket Type"
+                                value={type}
+                                onChange={(e) => setType(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                                disabled={isUploading}
+                            >
+                                <MenuItem value="bug">Bug</MenuItem>
+                                <MenuItem value="feature">Feature</MenuItem>
+                            </TextField>
+                        </Grid>
+
+                        {/* Spend Time */}
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                label="Spend Time"
+                                value={spendTime}
+                                onChange={(e) => setSpendTime(e.target.value)}
+                                placeholder="Eg: 1.5 or 2"
+                                InputLabelProps={{ shrink: true }}
+                                disabled={isUploading}
+                            />
+                        </Grid>
+                    </Grid>
 
                     {/* Media Upload */}
                     <Stack spacing={2}>

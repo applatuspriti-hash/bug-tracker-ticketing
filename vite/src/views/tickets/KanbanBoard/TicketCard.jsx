@@ -25,14 +25,14 @@ import { Draggable } from '@hello-pangea/dnd';
 // Status Configuration
 const getStatusConfig = (status) => {
     switch (status) {
-        case 'todo': return { label: 'TD', color: '#673ab7' }; // Deep Purple
-        case 'inprogress': return { label: 'IP', color: '#2196f3' }; // Blue
-        case 'fixed': return { label: 'F', color: '#00c853' }; // Green
-        case 'blocked': return { label: 'B', color: '#f44336' }; // Red
-        case 'deployed': return { label: 'D', color: '#ff9800' }; // Orange
-        case 'complete': return { label: 'C', color: '#00796b' }; // Teal
-        case 'deleted': return { label: 'Del', color: '#b0bec5' }; // Blue Grey
-        default: return { label: 'TD', color: '#673ab7' };
+        case 'todo': return { label: 'TD', title: 'To Do', color: '#673ab7' }; // Deep Purple
+        case 'inprogress': return { label: 'IP', title: 'In Progress', color: '#2196f3' }; // Blue
+        case 'fixed': return { label: 'F', title: 'Fixed', color: '#00c853' }; // Green
+        case 'blocked': return { label: 'B', title: 'Blocked', color: '#f44336' }; // Red
+        case 'deployed': return { label: 'D', title: 'Deployed', color: '#ff9800' }; // Orange
+        case 'complete': return { label: 'C', title: 'Complete', color: '#00796b' }; // Teal
+        case 'deleted': return { label: 'Del', title: 'Deleted', color: '#b0bec5' }; // Blue Grey
+        default: return { label: 'TD', title: 'To Do', color: '#673ab7' };
     }
 };
 
@@ -72,7 +72,7 @@ const getTimeAgo = (dateString) => {
 
 const TicketCard = ({ ticket, index, onClick, onAssign, onDelete, userList, onUpdateStatus, isAdmin }) => {
     const theme = useTheme();
-
+    console.log("ticket", ticket)
     // Actions Menu State
     const [anchorEl, setAnchorEl] = useState(null);
     const openMenu = Boolean(anchorEl);
@@ -182,9 +182,9 @@ const TicketCard = ({ ticket, index, onClick, onAssign, onDelete, userList, onUp
                         },
                         position: 'relative',
                         overflow: 'hidden',
-                        height: 168, // Exact height for total uniformity
-                        minHeight: 168,
-                        maxHeight: 168,
+                        height: 200, // Increased height to accommodate Ticket Type chip
+                        minHeight: 200,
+                        maxHeight: 200,
                         width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
@@ -194,7 +194,7 @@ const TicketCard = ({ ticket, index, onClick, onAssign, onDelete, userList, onUp
                     }}
                     onClick={() => onClick(ticket, false)}
                 >
-                    <Stack spacing={1.5} sx={{ flexGrow: 1 }}> {/* Main content area that grows */}
+                    <Stack spacing={1} sx={{ flexGrow: 1 }}> {/* Reduced spacing to 8px gap */}
                         {/* Header: Number and Menu */}
                         <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                             <Stack direction="row" spacing={1} alignItems="center">
@@ -218,6 +218,34 @@ const TicketCard = ({ ticket, index, onClick, onAssign, onDelete, userList, onUp
                                 )}
                             </Stack>
                         </Stack>
+
+                        {/* Ticket Type Chip - Positioned below header with specified 8px gap */}
+                        {ticket.type && (
+                            <Box sx={{ display: 'flex' }}>
+                                <Chip
+                                    label={
+                                        ticket?.type
+                                            ? ticket.type.charAt(0).toUpperCase() + ticket.type.slice(1)
+                                            : ""
+                                    }
+
+                                    size="small"
+                                    sx={{
+                                        height: 20,
+                                        fontSize: '0.65rem',
+                                        fontWeight: 800,
+                                        bgcolor: ticket.type === 'bug' ? '#ffebee' : '#e8f5e9',
+                                        color: ticket.type === 'bug' ? '#d32f2f' : '#2e7d32',
+                                        borderRadius: '4px',
+                                        border: '1px solid',
+                                        borderColor: ticket.type === 'bug' ? '#ffcdd2' : '#c8e6c9',
+                                        px: 0.5,
+                                        '& .MuiChip-label': { px: 0.5 }
+                                    }}
+                                />
+                            </Box>
+                        )}
+
                         {/* Menu */}
                         <Menu
                             anchorEl={anchorEl}
@@ -256,7 +284,7 @@ const TicketCard = ({ ticket, index, onClick, onAssign, onDelete, userList, onUp
                         </Tooltip>
 
                         {/* Epic Tag Container - Always present to maintain height */}
-                        <Box sx={{ minHeight: 24, display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ minHeight: 24, display: 'flex', alignItems: 'center', gap: 1 }}>
                             {ticket.epic && (
                                 <Chip
                                     label={ticket.epic.toUpperCase()}
@@ -277,39 +305,75 @@ const TicketCard = ({ ticket, index, onClick, onAssign, onDelete, userList, onUp
                     {/* Footer: Always at the bottom */}
                     <Stack direction="row" alignItems="center" justifyContent="space-between" mt={1}>
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <Checkbox
-                                size="small"
-                                checked={ticket.status === 'done' || ticket.status === 'deployed' || ticket.status === 'complete'}
-                                sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 18 } }}
-                            />
+                            <Tooltip title="Mark" placement="top" arrow>
+                                <Checkbox
+                                    size="small"
+                                    checked={ticket.status === 'done' || ticket.status === 'deployed' || ticket.status === 'complete'}
+                                    sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 18 } }}
+                                />
+                            </Tooltip>
                             {ticket.images && ticket.images.length > 0 && (
                                 <Stack direction="row" alignItems="center" spacing={0.2} sx={{ color: 'text.secondary' }}>
                                     <IconPaperclip size={14} />
                                     <Typography variant="caption" sx={{ fontWeight: 600 }}>
                                         {ticket.images.length}
                                     </Typography>
+
                                 </Stack>
                             )}
+
+
+
+
+
+
                         </Stack>
 
                         <Stack direction="row" alignItems="center" spacing={1}>
 
+                            {ticket?.spendTime && (
+                                <Tooltip title="Spend Time" placement="top" arrow>
+                                    <Card
+                                        sx={{
+                                            width: 24,
+                                            height: 24,
+                                            fontSize: "0.65rem",
+                                            bgcolor: "#107fb7",
+                                            color: "#ffffff",
+                                            cursor: "pointer",
+                                            fontWeight: "bold",
+                                            border: "1px solid #fff",
+                                            borderRadius: "50%",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            lineHeight: 1,
+                                        }}
+                                    >
+                                        {ticket.spendTime}
+                                    </Card>
+                                </Tooltip>
+                            )}
+
+
                             {/* Status Indicator (Interactive) */}
-                            <Avatar
-                                sx={{
-                                    width: 24,
-                                    height: 24,
-                                    fontSize: '0.65rem',
-                                    bgcolor: statusConfig.color,
-                                    color: '#fff',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold',
-                                    border: '1px solid white'
-                                }}
-                                onClick={handleStatusClick}
-                            >
-                                {statusConfig.label}
-                            </Avatar>
+                            <Tooltip title={statusConfig.title} placement="top" arrow>
+                                <Avatar
+                                    sx={{
+                                        width: 24,
+                                        height: 24,
+                                        fontSize: '0.65rem',
+                                        bgcolor: statusConfig.color,
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        fontWeight: 'bold',
+                                        border: '1px solid white'
+                                    }}
+                                    onClick={handleStatusClick}
+                                >
+                                    {statusConfig.label}
+                                </Avatar>
+                            </Tooltip>
                             <Menu
                                 anchorEl={statusAnchorEl}
                                 open={openStatus}
@@ -402,6 +466,7 @@ TicketCard.propTypes = {
         key: PropTypes.string,
         status: PropTypes.string,
         priority: PropTypes.string,
+        type: PropTypes.string,
         assigneeName: PropTypes.string,
         assigneeAvatar: PropTypes.string,
         images: PropTypes.array
