@@ -259,8 +259,9 @@ export const DataProvider = ({ children }) => {
 
     const deleteTicket = async (ticketId) => {
         try {
-            await firebaseDeleteTicket(ticketId);
-            showToast('Ticket deleted successfully!', 'success');
+            // Soft delete: update status to 'deleted'
+            await firebaseUpdateTicket(ticketId, { status: 'deleted' });
+            showToast('Ticket moved to deleted!', 'success');
         } catch (error) {
             showToast('Failed to delete ticket', 'error');
         }

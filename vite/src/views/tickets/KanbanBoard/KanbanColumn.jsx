@@ -22,6 +22,10 @@ const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
                 return theme.palette.error.main;
             case 'deployed':
                 return theme.palette.orange?.main || '#ffab00';
+            case 'complete':
+                return theme.palette.info.main;
+            case 'deleted':
+                return theme.palette.grey[500];
             default:
                 return theme.palette.grey[400];
         }
@@ -36,11 +40,11 @@ const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#ffebee', // Lighter red for better contrast
+                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#d9dbde', // Lighter red for better contrast
                 borderRadius: 2,
                 overflow: 'hidden', // Contain the scrollable area
                 border: '1px solid',
-                borderColor: theme.palette.mode === 'dark' ? 'transparent' : '#ffcdd2',
+                borderColor: theme.palette.mode === 'dark' ? 'transparent' : '#d9dbde',
                 transition: 'all 0.3s ease-in-out',
                 '&:hover': {
                     boxShadow: theme.shadows[2]
@@ -53,7 +57,7 @@ const KanbanColumn = ({ id, title, tickets, renderTicket }) => {
                 position: 'sticky',
                 top: 0,
                 zIndex: 2,
-                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#ffebee',
+                bgcolor: theme.palette.mode === 'dark' ? theme.palette.dark[800] : '#d9dbde',
                 borderBottom: '1px solid',
                 borderColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(255,0,0,0.1)'
             }}>

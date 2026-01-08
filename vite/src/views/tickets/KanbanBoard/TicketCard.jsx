@@ -18,7 +18,8 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemText from '@mui/material/ListItemText';
 import Tooltip from '@mui/material/Tooltip';
 
-import { IconCheck, IconDotsVertical, IconTrash, IconEdit, IconPaperclip } from '@tabler/icons-react';
+import { IconCheck, IconDotsVertical, IconTrash, IconEdit, IconPaperclip, IconShare } from '@tabler/icons-react';
+import { useToast } from 'contexts/ToastContext';
 
 // Status Configuration
 const getStatusConfig = (status) => {
@@ -28,6 +29,8 @@ const getStatusConfig = (status) => {
         case 'fixed': return { label: 'F', color: '#00c853' }; // Green
         case 'blocked': return { label: 'B', color: '#f44336' }; // Red
         case 'deployed': return { label: 'D', color: '#ff9800' }; // Orange
+        case 'complete': return { label: 'C', color: '#00796b' }; // Teal
+        case 'deleted': return { label: 'Del', color: '#b0bec5' }; // Blue Grey
         default: return { label: 'TD', color: '#673ab7' };
     }
 };
@@ -66,7 +69,7 @@ const getTimeAgo = (dateString) => {
     return "Just now";
 };
 
-const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList, onUpdateStatus }) => {
+const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList, onUpdateStatus, isAdmin }) => {
     const theme = useTheme();
 
     // Actions Menu State
@@ -101,6 +104,17 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList, onUpdateSta
         event.stopPropagation();
         if (onDelete) onDelete(ticket.id);
         setAnchorEl(null);
+    };
+
+    const { showToast } = useToast();
+
+    const handleShare = (event) => {
+        event.stopPropagation();
+        const url = new URL(window.location.href);
+        url.searchParams.set('ticketId', ticket.id);
+        navigator.clipboard.writeText(url.toString()).then(() => {
+            showToast('Ticket link copied to clipboard!', 'success');
+        });
     };
 
     // Assignment Handlers
@@ -182,9 +196,16 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList, onUpdateSta
                             </Typography>
                         )}
                     </Stack>
-                    <IconButton size="small" onClick={handleMenuClick} sx={{ mt: -1, mr: -1 }}>
-                        <IconDotsVertical size={16} />
-                    </IconButton>
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: -1, mr: -1 }}>
+                        <IconButton size="small" onClick={handleShare} sx={{ color: 'primary.main' }} title="Share ticket">
+                            <IconShare size={16} />
+                        </IconButton>
+                        {isAdmin && (
+                            <IconButton size="small" onClick={handleMenuClick}>
+                                <IconDotsVertical size={16} />
+                            </IconButton>
+                        )}
+                    </Stack>
                 </Stack>
                 {/* Menu */}
                 <Menu
@@ -247,7 +268,7 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList, onUpdateSta
                 <Stack direction="row" alignItems="center" spacing={0.5}>
                     <Checkbox
                         size="small"
-                        checked={ticket.status === 'done' || ticket.status === 'deployed'}
+                        checked={ticket.status === 'done' || ticket.status === 'deployed' || ticket.status === 'complete'}
                         sx={{ p: 0, '& .MuiSvgIcon-root': { fontSize: 18 } }}
                     />
                     {ticket.images && ticket.images.length > 0 && (
@@ -288,16 +309,36 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList, onUpdateSta
                         <MenuItem onClick={(e) => handleSelectStatus(e, 'fixed')}>Fixed</MenuItem>
                         <MenuItem onClick={(e) => handleSelectStatus(e, 'blocked')}>Blocked</MenuItem>
                         <MenuItem onClick={(e) => handleSelectStatus(e, 'deployed')}>Deployed</MenuItem>
+                        {isAdmin && <MenuItem onClick={(e) => handleSelectStatus(e, 'complete')}>Complete</MenuItem>}
+                        {isAdmin && <MenuItem onClick={(e) => handleSelectStatus(e, 'deleted')}>Deleted</MenuItem>}
                     </Menu>
 
                     {/* Assignee Avatar */}
-                    <Avatar
-                        src={ticket.assigneeAvatar}
-                        sx={{ width: 24, height: 24, fontSize: '0.75rem', cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
-                        onClick={handleAvatarClick}
-                    >
-                        {ticket.assigneeName ? ticket.assigneeName.charAt(0) : 'U'}
-                    </Avatar>
+                    <Tooltip title={ticket.assigneeName || 'Unassigned'} placement="top" arrow>
+                        <Avatar
+                            src={ticket.assigneeAvatar}
+                            sx={{
+                                width: 24,
+                                height: 24,
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                bgcolor: theme.palette.primary.light,
+                                color: theme.palette.primary.main,
+                                fontWeight: 700,
+                                '&:hover': { opacity: 0.8 }
+                            }}
+                            onClick={handleAvatarClick}
+                        >
+                            {ticket.assigneeName
+                                ? ticket.assigneeName
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .slice(0, 2)
+                                    .join('')
+                                    .toUpperCase()
+                                : 'U'}
+                        </Avatar>
+                    </Tooltip>
 
                     {/* Assignment Popover */}
                     <Popover
@@ -313,7 +354,19 @@ const TicketCard = ({ ticket, onClick, onAssign, onDelete, userList, onUpdateSta
                                 {userList && userList.map(user => (
                                     <ListItem key={user.id} button onClick={(e) => handleSelectUser(e, user.id)}>
                                         <ListItemAvatar>
-                                            <Avatar src={user.avatar} sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>{user.name.charAt(0)}</Avatar>
+                                            <Avatar
+                                                src={user.avatar}
+                                                sx={{
+                                                    width: 24,
+                                                    height: 24,
+                                                    fontSize: '0.7rem',
+                                                    bgcolor: theme.palette.primary.light,
+                                                    color: theme.palette.primary.main,
+                                                    fontWeight: 600
+                                                }}
+                                            >
+                                                {user.name ? user.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'U'}
+                                            </Avatar>
                                         </ListItemAvatar>
                                         <ListItemText primary={user.name} />
                                     </ListItem>
@@ -344,7 +397,8 @@ TicketCard.propTypes = {
     onAssign: PropTypes.func,
     onDelete: PropTypes.func,
     onUpdateStatus: PropTypes.func, // Added handler
-    userList: PropTypes.array
+    userList: PropTypes.array,
+    isAdmin: PropTypes.bool
 };
 
 export default TicketCard;

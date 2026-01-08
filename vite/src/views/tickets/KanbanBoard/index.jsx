@@ -33,6 +33,7 @@ const KanbanBoard = () => {
     // State for Filter
     const [filterUser, setFilterUser] = useState('all');
     const [filterSuperBoard, setFilterSuperBoard] = useState('all');
+    const [filterPriority, setFilterPriority] = useState('all');
 
 
 
@@ -100,7 +101,9 @@ const KanbanBoard = () => {
         { id: 'inprogress', title: 'In Progress' },
         { id: 'fixed', title: 'Fixed' },
         { id: 'blocked', title: 'Blocked' },
-        { id: 'deployed', title: 'Deployed' }
+        { id: 'deployed', title: 'Deployed' },
+        ...(isAdmin ? [{ id: 'complete', title: 'Complete' }] : []),
+        ...(isAdmin ? [{ id: 'deleted', title: 'Deleted' }] : [])
     ];
 
     // Helper to get tickets for a column
@@ -122,6 +125,10 @@ const KanbanBoard = () => {
                 const allowedIds = availableSuperBoards.map(sb => sb.id);
                 filtered = filtered.filter(t => allowedIds.includes(t.superBoardId));
             }
+        }
+
+        if (filterPriority !== 'all') {
+            filtered = filtered.filter(t => t.priority === filterPriority);
         }
 
         return filtered;
@@ -172,6 +179,27 @@ const KanbanBoard = () => {
         return users.filter(u => boardTicketAssignees.has(u.id));
     }, [users, tickets, filterSuperBoard, availableSuperBoards, userAssignments]);
 
+    // Deep linking for tickets
+    useEffect(() => {
+        const ticketId = searchParams.get('ticketId');
+        if (ticketId && tickets.length > 0 && !selectedTicket) {
+            const ticket = tickets.find(t => t.id.toString() === ticketId);
+            if (ticket) {
+                const richTicket = {
+                    ...ticket,
+                    assigneeName: users.find(u => u.id === ticket.assigneeId)?.name,
+                    assigneeAvatar: users.find(u => u.id === ticket.assigneeId)?.avatar,
+                    reporterName: users.find(u => u.id === ticket.reporterId)?.name,
+                    reporterAvatar: users.find(u => u.id === ticket.reporterId)?.avatar,
+                    epic: ticket.epic || 'EXAMPLE EPIC 1'
+                };
+                setSelectedTicket(richTicket);
+                setIsEditMode(true);
+                setOpenDetail(true);
+            }
+        }
+    }, [searchParams, tickets, users]);
+
     const handleTicketClick = (ticket, isEdit = true) => {
         // Hydrate with assignee info if needed, though card likely has it
         const richTicket = {
@@ -186,12 +214,20 @@ const KanbanBoard = () => {
         setSelectedTicket(richTicket);
         setIsEditMode(true); // Always editable as per request
         setOpenDetail(true);
+
+        // Update URL
+        searchParams.set('ticketId', ticket.id);
+        setSearchParams(searchParams);
     };
 
     const handleCloseDetail = () => {
         setOpenDetail(false);
         setSelectedTicket(null);
         setIsEditMode(false);
+
+        // Clear URL param
+        searchParams.delete('ticketId');
+        setSearchParams(searchParams);
     };
 
     const handleUpdateStatus = (ticketId, newStatus) => {
@@ -257,6 +293,8 @@ const KanbanBoard = () => {
                                 <MenuItem value="fixed">Fixed</MenuItem>
                                 <MenuItem value="blocked">Blocked</MenuItem>
                                 <MenuItem value="deployed">Deployed</MenuItem>
+                                {isAdmin && <MenuItem value="complete">Complete</MenuItem>}
+                                {isAdmin && <MenuItem value="deleted">Deleted</MenuItem>}
                             </Select>
                         </FormControl>
                     </Grid>
@@ -294,6 +332,22 @@ const KanbanBoard = () => {
                         </FormControl>
                     </Grid>
 
+                    <Grid item xs={12}>
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Priority</InputLabel>
+                            <Select
+                                value={filterPriority}
+                                label="Priority"
+                                onChange={(e) => setFilterPriority(e.target.value)}
+                            >
+                                <MenuItem value="all">All Priorities</MenuItem>
+                                <MenuItem value="high">High</MenuItem>
+                                <MenuItem value="medium">Medium</MenuItem>
+                                <MenuItem value="low">Low</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
                     {/* Create Ticket Button - Full Width */}
                     <Grid item xs={12}>
                         <Button variant="contained" fullWidth onClick={() => setOpenCreate(true)}>
@@ -321,7 +375,9 @@ const KanbanBoard = () => {
                                         onClick={handleTicketClick}
                                         onAssign={handleTicketAssign}
                                         onDelete={handleTicketDelete}
+                                        onUpdateStatus={handleUpdateStatus}
                                         userList={displayedUsers}
+                                        isAdmin={isAdmin}
                                     />
                                 )}
                             />
@@ -377,6 +433,21 @@ const KanbanBoard = () => {
                                     ))}
                                 </Select>
                             </FormControl>
+
+                            <FormControl size="small" sx={{ minWidth: 150 }}>
+                                <InputLabel id="priority-filter-label">Filter by Priority</InputLabel>
+                                <Select
+                                    labelId="priority-filter-label"
+                                    value={filterPriority}
+                                    label="Filter by Priority"
+                                    onChange={(e) => setFilterPriority(e.target.value)}
+                                >
+                                    <MenuItem value="all">All Priorities</MenuItem>
+                                    <MenuItem value="high">High</MenuItem>
+                                    <MenuItem value="medium">Medium</MenuItem>
+                                    <MenuItem value="low">Low</MenuItem>
+                                </Select>
+                            </FormControl>
                         </Stack>
                     </Stack>
                 </Box>
@@ -423,6 +494,7 @@ const KanbanBoard = () => {
                                         onDelete={handleTicketDelete}
                                         onUpdateStatus={handleUpdateStatus}
                                         userList={displayedUsers}
+                                        isAdmin={isAdmin}
                                     />
                                 )}
                             />
@@ -439,6 +511,7 @@ const KanbanBoard = () => {
                 onUpdateTicket={updateTicket}
                 assigneeList={users}
                 isEdit={isEditMode}
+                isAdmin={isAdmin}
             />
 
             <TicketCreateDialog

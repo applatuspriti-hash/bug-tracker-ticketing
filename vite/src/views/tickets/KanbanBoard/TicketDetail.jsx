@@ -19,8 +19,9 @@ import Checkbox from '@mui/material/Checkbox';
 import CircularProgress from '@mui/material/CircularProgress';
 
 // Icons
-import { IconX, IconMaximize, IconPlus, IconSettings } from '@tabler/icons-react';
+import { IconX, IconMaximize, IconPlus, IconSettings, IconShare } from '@tabler/icons-react';
 import { uploadFileToS3 } from 'utils/s3Client';
+import { useToast } from 'contexts/ToastContext';
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -31,7 +32,7 @@ function TabPanel(props) {
     );
 }
 
-const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, assigneeList, isEdit }) => {
+const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, assigneeList, isEdit, isAdmin }) => {
     const { user } = useAuth();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -41,7 +42,20 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     const [newComment, setNewComment] = useState('');
     const [images, setImages] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [commentFiles, setCommentFiles] = useState([]);
+    const [commentPreviews, setCommentPreviews] = useState([]);
+    const [isCommenting, setIsCommenting] = useState(false);
     const fileInputRef = useRef(null);
+    const commentFileInputRef = useRef(null);
+    const { showToast } = useToast();
+
+    const handleShare = () => {
+        const url = new URL(window.location.href);
+        url.searchParams.set('ticketId', ticket.id);
+        navigator.clipboard.writeText(url.toString()).then(() => {
+            showToast('Direct link copied to clipboard!', 'success');
+        });
+    };
 
     // Sync state with ticket prop when it opens/changes
     useEffect(() => {
@@ -102,19 +116,59 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
         }
     };
 
+    const handleCommentFileChange = (e) => {
+        const selectedFiles = Array.from(e.target.files);
+        if (selectedFiles.length === 0) return;
+
+        setCommentFiles((prev) => [...prev, ...selectedFiles]);
+
+        selectedFiles.forEach((file) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setCommentPreviews((prev) => [
+                    ...prev,
+                    {
+                        url: reader.result,
+                        type: file.type.startsWith('video/') ? 'video' : 'image',
+                        name: file.name
+                    }
+                ]);
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const removeCommentFile = (index) => {
+        setCommentFiles((prev) => prev.filter((_, i) => i !== index));
+        setCommentPreviews((prev) => prev.filter((_, i) => i !== index));
+    };
+
     const handleSaveComment = async () => {
-        if (!newComment.trim()) return;
-        const comment = {
-            text: newComment,
-            author: user?.displayName || user?.name || user?.email || 'Anonymous',
-            timestamp: new Date().toISOString()
-        };
-        const updatedComments = [...(ticket.comments || []), comment];
+        if (!newComment.trim() && commentFiles.length === 0) return;
+
+        setIsCommenting(true);
         try {
+            let commentAttachmentUrls = [];
+            if (commentFiles.length > 0) {
+                commentAttachmentUrls = await Promise.all(commentFiles.map(file => uploadFileToS3(file)));
+            }
+
+            const comment = {
+                text: newComment,
+                author: user?.displayName || user?.name || user?.email || 'Anonymous',
+                timestamp: new Date().toISOString(),
+                attachments: commentAttachmentUrls
+            };
+            const updatedComments = [...(ticket.comments || []), comment];
             await onUpdateTicket(ticket.id, { comments: updatedComments });
             setNewComment('');
+            setCommentFiles([]);
+            setCommentPreviews([]);
         } catch (error) {
             console.error('Failed to save comment:', error);
+            alert('Failed to save comment or upload attachments.');
+        } finally {
+            setIsCommenting(false);
         }
     };
 
@@ -175,6 +229,9 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
 
                     </Stack>
                     <Stack direction="row" spacing={1}>
+                        <IconButton size="small" onClick={handleShare} sx={{ color: 'primary.main' }} title="Share ticket link">
+                            <IconShare size={20} />
+                        </IconButton>
                         <IconButton size="small" onClick={onClose} sx={{ color: 'text.secondary' }}><IconX size={20} /></IconButton>
                     </Stack>
                 </Box>
@@ -337,6 +394,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                         placeholder="Add a comment..."
                                         value={newComment}
                                         onChange={(e) => setNewComment(e.target.value)}
+                                        disabled={isCommenting}
                                         sx={{
                                             mb: 1,
                                             '& .MuiOutlinedInput-root': {
@@ -344,26 +402,75 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                             }
                                         }}
                                     />
-                                    {newComment.trim() && (
-                                        <Stack direction="row" spacing={1}>
-                                            <Button
-                                                variant="contained"
-                                                size="small"
-                                                onClick={handleSaveComment}
-                                                color="primary"
-                                            >
-                                                Save
-                                            </Button>
+
+                                    {/* Comment Attachments Preview */}
+                                    {commentPreviews.length > 0 && (
+                                        <Grid container spacing={1} sx={{ mb: 2 }}>
+                                            {commentPreviews.map((preview, index) => (
+                                                <Grid item key={index}>
+                                                    <Box sx={{ position: 'relative', width: 60, height: 60, borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                                                        {preview.type === 'image' ? (
+                                                            <img src={preview.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                        ) : (
+                                                            <video src={preview.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                        )}
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => removeCommentFile(index)}
+                                                            sx={{ position: 'absolute', top: 0, right: 0, bgcolor: 'rgba(0,0,0,0.5)', color: 'white', p: 0.2, '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' } }}
+                                                        >
+                                                            <IconX size={12} />
+                                                        </IconButton>
+                                                    </Box>
+                                                </Grid>
+                                            ))}
+                                        </Grid>
+                                    )}
+
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                        <Button
+                                            variant="contained"
+                                            size="small"
+                                            onClick={handleSaveComment}
+                                            color="primary"
+                                            disabled={isCommenting || (!newComment.trim() && commentFiles.length === 0)}
+                                            startIcon={isCommenting ? <CircularProgress size={16} color="inherit" /> : null}
+                                        >
+                                            {isCommenting ? 'Posting...' : 'Save'}
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            color="secondary"
+                                            onClick={() => commentFileInputRef.current.click()}
+                                            disabled={isCommenting}
+                                            startIcon={<IconPlus size={16} />}
+                                        >
+                                            Attach
+                                        </Button>
+                                        {(newComment.trim() || commentFiles.length > 0) && !isCommenting && (
                                             <Button
                                                 variant="text"
                                                 size="small"
-                                                onClick={() => setNewComment('')}
+                                                onClick={() => {
+                                                    setNewComment('');
+                                                    setCommentFiles([]);
+                                                    setCommentPreviews([]);
+                                                }}
                                                 color="inherit"
                                             >
                                                 Cancel
                                             </Button>
-                                        </Stack>
-                                    )}
+                                        )}
+                                        <input
+                                            type="file"
+                                            hidden
+                                            multiple
+                                            ref={commentFileInputRef}
+                                            accept="image/*,video/*"
+                                            onChange={handleCommentFileChange}
+                                        />
+                                    </Stack>
                                 </Box>
 
                                 {/* Comments List */}
@@ -374,7 +481,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                                 sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
                                                 src={comment.authorAvatar}
                                             >
-                                                {comment.author?.charAt(0).toUpperCase()}
+                                                {comment.author ? comment.author.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'A'}
                                             </Avatar>
                                             <Box sx={{ flex: 1 }}>
                                                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
@@ -385,9 +492,38 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                                         {formatDate(comment.timestamp)}
                                                     </Typography>
                                                 </Stack>
-                                                <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'pre-wrap' }}>
+                                                <Typography variant="body2" sx={{ color: 'text.primary', whiteSpace: 'pre-wrap', mb: comment.attachments?.length > 0 ? 1 : 0 }}>
                                                     {comment.text}
                                                 </Typography>
+                                                {comment.attachments && comment.attachments.length > 0 && (
+                                                    <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                                                        {comment.attachments.map((att, attIndex) => {
+                                                            const isVideo = att.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) || att.includes('video');
+                                                            return (
+                                                                <Box
+                                                                    key={attIndex}
+                                                                    sx={{
+                                                                        width: 80,
+                                                                        height: 80,
+                                                                        borderRadius: 1,
+                                                                        overflow: 'hidden',
+                                                                        border: '1px solid',
+                                                                        borderColor: 'divider',
+                                                                        cursor: 'pointer',
+                                                                        flexShrink: 0
+                                                                    }}
+                                                                    onClick={() => window.open(att, '_blank')}
+                                                                >
+                                                                    {isVideo ? (
+                                                                        <video src={att} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                                    ) : (
+                                                                        <img src={att} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                                    )}
+                                                                </Box>
+                                                            );
+                                                        })}
+                                                    </Stack>
+                                                )}
                                             </Box>
                                         </Box>
                                     ))}
@@ -427,6 +563,8 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                 <MenuItem value="fixed">Fixed</MenuItem>
                                 <MenuItem value="blocked">Blocked</MenuItem>
                                 <MenuItem value="deployed">Deployed</MenuItem>
+                                {isAdmin && <MenuItem value="complete">Complete</MenuItem>}
+                                {isAdmin && <MenuItem value="deleted">Deleted</MenuItem>}
                             </Select>
                         </Box>
 
@@ -480,8 +618,8 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                 <Box>
                                     <Typography variant="caption" color="textSecondary" display="block" sx={{ mb: 0.5 }}>Reporter</Typography>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                        <Avatar src={ticket.reporterAvatar} sx={{ width: 28, height: 28 }}>
-                                            {ticket.reporterName ? ticket.reporterName.charAt(0) : 'R'}
+                                        <Avatar src={ticket.reporterAvatar} sx={{ width: 28, height: 28, fontSize: '0.75rem' }}>
+                                            {ticket.reporterName ? ticket.reporterName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'R'}
                                         </Avatar>
                                         <Typography variant="body2" sx={{ fontWeight: 500 }}>{ticket.reporterName || 'System'}</Typography>
                                     </Box>
@@ -509,7 +647,8 @@ TicketDetail.propTypes = {
     onUpdateStatus: PropTypes.func.isRequired,
     onUpdateTicket: PropTypes.func.isRequired,
     assigneeList: PropTypes.array,
-    isEdit: PropTypes.bool
+    isEdit: PropTypes.bool,
+    isAdmin: PropTypes.bool
 };
 
 export default TicketDetail;
