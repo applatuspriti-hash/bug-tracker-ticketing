@@ -61,6 +61,8 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
     const [isDescriptionChanged, setIsDescriptionChanged] = useState(false);
     const [newComment, setNewComment] = useState('');
     const [images, setImages] = useState([]);
+    const [pendingTicketFiles, setPendingTicketFiles] = useState([]);
+    const [pendingTicketPreviews, setPendingTicketPreviews] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
     const [commentFiles, setCommentFiles] = useState([]);
     const [commentPreviews, setCommentPreviews] = useState([]);
@@ -93,6 +95,8 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
             setImages(ticket.images || []);
             setSpendTime(ticket.spendTime || '');
             setIsDescriptionChanged(false);
+            setPendingTicketFiles([]);
+            setPendingTicketPreviews([]);
         }
     }, [ticket]);
 
@@ -142,32 +146,46 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
         }
     };
 
-    const handleImageUpload = async (event) => {
-        const selectedFiles = Array.from(event.target.files);
-        if (selectedFiles.length === 0) return;
+    const processTicketAttachments = (files) => {
+        const fileArray = Array.from(files);
+        if (fileArray.length === 0) return;
 
-        setIsUploading(true);
-        try {
-            const uploadedUrls = await Promise.all(selectedFiles.map(file => uploadFileToS3(file)));
-            const updatedImages = [...(ticket.images || []), ...uploadedUrls];
-            await onUpdateTicket(ticket.id, { images: updatedImages });
-            setImages(updatedImages);
-            event.target.value = ''; // Reset input
-        } catch (error) {
-            console.error('Failed to upload attachments:', error);
-            alert('Failed to upload some attachments. Please try again.');
-        } finally {
-            setIsUploading(false);
-        }
+        setPendingTicketFiles((prev) => [...prev, ...fileArray]);
+
+        fileArray.forEach((file) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPendingTicketPreviews((prev) => [
+                    ...prev,
+                    {
+                        url: reader.result,
+                        type: file.type.startsWith('video/') ? 'video' : 'image',
+                        name: file.name
+                    }
+                ]);
+            };
+            reader.readAsDataURL(file);
+        });
     };
 
-    const handleCommentFileChange = (e) => {
-        const selectedFiles = Array.from(e.target.files);
-        if (selectedFiles.length === 0) return;
+    const removeTicketPendingFile = (index) => {
+        setPendingTicketFiles((prev) => prev.filter((_, i) => i !== index));
+        setPendingTicketPreviews((prev) => prev.filter((_, i) => i !== index));
+    };
 
-        setCommentFiles((prev) => [...prev, ...selectedFiles]);
+    const handleImageUpload = async (event) => {
+        const selectedFiles = event.target.files;
+        await processTicketAttachments(selectedFiles);
+        event.target.value = ''; // Reset input
+    };
 
-        selectedFiles.forEach((file) => {
+    const processCommentAttachments = (files) => {
+        const fileArray = Array.from(files);
+        if (fileArray.length === 0) return;
+
+        setCommentFiles((prev) => [...prev, ...fileArray]);
+
+        fileArray.forEach((file) => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 setCommentPreviews((prev) => [
@@ -181,6 +199,29 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
             };
             reader.readAsDataURL(file);
         });
+    };
+
+    const handleCommentFileChange = (e) => {
+        processCommentAttachments(e.target.files);
+    };
+
+    const handlePaste = (e) => {
+        if (e.clipboardData && e.clipboardData.files.length > 0) {
+            const files = e.clipboardData.files;
+
+            // Check if paste target is within comment section
+            const isCommentPaste = e.target.closest('[data-section="comment-section"]');
+
+            if (isCommentPaste) {
+                e.preventDefault();
+                processCommentAttachments(files);
+                showToast('Image pasted to comments...', 'info');
+            } else if (isEdit) {
+                e.preventDefault();
+                processTicketAttachments(files);
+                showToast('Image pasted to attachments...', 'info');
+            }
+        }
     };
 
     const removeCommentFile = (index) => {
@@ -218,12 +259,37 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
         }
     };
 
-    const handleSaveDescription = async () => {
+    const handleSaveChanges = async () => {
+        setIsUploading(true);
         try {
-            await onUpdateTicket(ticket.id, { description });
+            let newImageUrls = [];
+            if (pendingTicketFiles.length > 0) {
+                newImageUrls = await Promise.all(pendingTicketFiles.map(file => uploadFileToS3(file)));
+            }
+
+            const payload = {};
+            if (isDescriptionChanged) payload.description = description;
+            if (newImageUrls.length > 0) {
+                payload.images = [...(ticket.images || []), ...newImageUrls];
+            }
+
+            if (Object.keys(payload).length > 0) {
+                await onUpdateTicket(ticket.id, payload);
+            }
+
             setIsDescriptionChanged(false);
+            setPendingTicketFiles([]);
+            setPendingTicketPreviews([]);
+            // Update local images state immediately for UI responsiveness
+            if (newImageUrls.length > 0) {
+                setImages((prev) => [...prev, ...newImageUrls]);
+            }
+
         } catch (error) {
-            console.error('Failed to save description:', error);
+            console.error('Failed to save changes:', error);
+            showToast('Failed to save changes.', 'error');
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -249,6 +315,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
 
     return (
         <Dialog
+            onPaste={handlePaste}
             open={open}
             // onClose={onClose}
             maxWidth="lg"
@@ -370,19 +437,7 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                                 />
                             </Box>
 
-                            {isEdit && isDescriptionChanged && (
-                                <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end' }}>
-                                    <Button
-                                        variant="contained"
-                                        color="primary"
-                                        size="medium"
-                                        onClick={handleSaveDescription}
-                                        sx={{ borderRadius: 2, px: 3 }}
-                                    >
-                                        Save Changes
-                                    </Button>
-                                </Box>
-                            )}
+
 
                             {isEdit && (
                                 <Box sx={{ mb: 3 }}>
@@ -408,60 +463,130 @@ const TicketDetail = ({ open, onClose, ticket, onUpdateStatus, onUpdateTicket, a
                             )}
 
                             {/* Attachments */}
-                            {(images && images.length > 0) && (
-                                <Box sx={{ mb: 2 }}>
-                                    <Typography variant="h5" sx={{ mb: 2 }}>Attachments ({images.length})</Typography>
-                                    <Stack
-                                        direction="row"
-                                        spacing={2}
-                                        sx={{
-                                            overflowX: 'auto',
-                                            pb: 1,
-                                            px: 1
-                                        }}
-                                    >
+                            <Box sx={{ mb: 2 }}>
+                                <Typography variant="h5" sx={{ mb: 2 }}>Attachments ({images.length + pendingTicketPreviews.length})</Typography>
+                                <Stack
+                                    direction="row"
+                                    spacing={2}
+                                    sx={{
+                                        overflowX: 'auto',
+                                        pb: 1,
+                                        px: 1,
+                                        flexWrap: 'wrap',
+                                        gap: 2 // Use gap for wrapping
+                                    }}
+                                >
+                                    {/* Existing Images */}
+                                    {images.map((img, index) => {
+                                        const isVideo = img.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) || img.includes('video');
+                                        return (
+                                            <Box
+                                                key={`existing-${index}`}
+                                                sx={{
+                                                    position: 'relative',
+                                                    minWidth: 100,
+                                                    width: 100,
+                                                    height: 100,
+                                                    borderRadius: 2,
+                                                    overflow: 'hidden',
+                                                    border: '1px solid',
+                                                    borderColor: 'divider',
+                                                    cursor: 'pointer',
+                                                    '&:hover': { opacity: 0.9 },
+                                                    ml: 0, // Reset margin for use with gap
+                                                    marginBottom: 2
+                                                }}
+                                                onClick={() => window.open(img, '_blank')}
+                                            >
+                                                {isVideo ? (
+                                                    <video
+                                                        src={img}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        src={img}
+                                                        alt={`attachment-${index}`}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    />
+                                                )}
+                                            </Box>
+                                        );
+                                    })}
 
-                                        {images.map((img, index) => {
-                                            const isVideo = img.toLowerCase().match(/\.(mp4|webm|ogg|mov)$/) || img.includes('video');
-                                            return (
-                                                <Box
-                                                    key={index}
-                                                    sx={{
-                                                        position: 'relative',
-                                                        minWidth: 100,
-                                                        width: 100,
-                                                        height: 100,
-                                                        borderRadius: 2,
-                                                        overflow: 'hidden',
-                                                        border: '1px solid',
-                                                        borderColor: 'divider',
-                                                        cursor: 'pointer',
-                                                        '&:hover': { opacity: 0.9 }
-                                                    }}
-                                                    onClick={() => window.open(img, '_blank')}
-                                                >
-                                                    {isVideo ? (
-                                                        <video
-                                                            src={img}
-                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                        />
-                                                    ) : (
-                                                        <img
-                                                            src={img}
-                                                            alt={`attachment-${index}`}
-                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                        />
-                                                    )}
-                                                </Box>
-                                            );
-                                        })}
-                                    </Stack>
+                                    {/* Pending Images */}
+                                    {pendingTicketPreviews.map((preview, index) => (
+                                        <Box
+                                            key={`pending-${index}`}
+                                            sx={{
+                                                position: 'relative',
+                                                minWidth: 100,
+                                                width: 100,
+                                                height: 100,
+                                                borderRadius: 2,
+                                                overflow: 'hidden',
+                                                border: '1px solid',
+                                                borderColor: 'primary.main', // Highlight pending
+                                                cursor: 'pointer',
+                                                ml: 0,
+                                                marginBottom: 2
+                                            }}
+                                        >
+                                            {preview.type === 'image' ? (
+                                                <img
+                                                    src={preview.url}
+                                                    alt={`pending-${index}`}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}
+                                                />
+                                            ) : (
+                                                <video
+                                                    src={preview.url}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}
+                                                />
+                                            )}
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeTicketPendingFile(index);
+                                                }}
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: 2,
+                                                    right: 2,
+                                                    bgcolor: 'rgba(0,0,0,0.6)',
+                                                    color: 'white',
+                                                    p: 0.5,
+                                                    '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' }
+                                                }}
+                                            >
+                                                <IconX size={14} />
+                                            </IconButton>
+                                        </Box>
+                                    ))}
+                                </Stack>
+                            </Box>
+
+                            {/* Save Changes Button (Moved Here) */}
+                            {isEdit && (isDescriptionChanged || pendingTicketFiles.length > 0) && (
+                                <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end' }}>
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        size="medium"
+                                        onClick={handleSaveChanges}
+                                        disabled={isUploading}
+                                        startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : null}
+                                        sx={{ borderRadius: 2, px: 3 }}
+                                    >
+                                        {isUploading ? 'Saving...' : 'Save Changes'}
+                                    </Button>
                                 </Box>
                             )}
 
                             {/* Comments Section */}
                             <Divider sx={{ my: 4 }} />
-                            <Box>
+                            <Box data-section="comment-section">
                                 <Typography variant="h4" sx={{ mb: 2 }}>Comments</Typography>
 
                                 {/* New Comment Input */}
