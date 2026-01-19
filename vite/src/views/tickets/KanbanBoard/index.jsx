@@ -374,7 +374,7 @@ const KanbanBoard = () => {
                     <Grid item xs={12}>
                         <Stack direction="row" spacing={1}>
                             <Button variant="contained" fullWidth onClick={() => setOpenCreate(true)}>
-                                Create Ticket 
+                                Create Ticket
                             </Button>
                             <Button
                                 variant="outlined"
@@ -390,10 +390,11 @@ const KanbanBoard = () => {
 
                 <Stack spacing={2}>
                     {mobileCols.map(col => (
-                        <Box key={col.id} sx={{ minHeight: 200, bgcolor: 'secondary.light', p: 1, borderRadius: 2 }}>
+                        <Box key={col.id}>
                             <KanbanColumn
                                 id={col.id}
                                 title={col.title}
+                                isMobile={true}
                                 tickets={getTicketsForColumn(col.id).map(t => ({
                                     ...t,
                                     assigneeName: users.find(u => u.id === t.assigneeId)?.name,
@@ -445,7 +446,7 @@ const KanbanBoard = () => {
                                     padding: 0,
                                     borderRadius: "6px",
                                     borderColor: "#dcdcdc",
-                                     backgroundColor: "#f7f7f7",
+                                    backgroundColor: "#f7f7f7",
                                     color: "#333",
                                     display: "flex",
                                     alignItems: "center",
