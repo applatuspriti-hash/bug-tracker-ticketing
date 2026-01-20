@@ -23,7 +23,9 @@ import { useEffect } from 'react';
 import { useToast } from 'contexts/ToastContext';
 import DeleteConfirmDialog from 'ui-component/extended/DeleteConfirmDialog';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { IconRefresh } from '@tabler/icons-react';
+import { IconRefresh, IconSearch } from '@tabler/icons-react';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 
 const KanbanBoard = () => {
     const theme = useTheme();
@@ -37,6 +39,7 @@ const KanbanBoard = () => {
     const [filterSuperBoard, setFilterSuperBoard] = useState('all');
     const [filterPriority, setFilterPriority] = useState('all');
     const [filterType, setFilterType] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Use superBoards directly as they are already filtered by DataContext
     const availableSuperBoards = superBoards;
@@ -119,6 +122,20 @@ const KanbanBoard = () => {
 
         if (filterType !== 'all') {
             filtered = filtered.filter(t => t.type === filterType);
+        }
+
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(t => {
+                const titleMatch = t.title?.toLowerCase().includes(query);
+                const idMatch = t.id.toString().toLowerCase().includes(query);
+
+                // Match the generated key displayed on the card
+                const generatedKey = `SMP-${(t.id.toString().split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10000).toString().padStart(4, '0')}`;
+                const keyMatch = generatedKey.toLowerCase().includes(query);
+
+                return titleMatch || idMatch || keyMatch;
+            });
         }
 
         // Sort by updatedAt descending (newest first)
@@ -298,6 +315,22 @@ const KanbanBoard = () => {
             <Box>
                 <Grid container spacing={2} sx={{ mb: 2 }}>
                     <Grid item xs={12}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Search ticket # or title..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <IconSearch size={16} />
+                                    </InputAdornment>
+                                )
+                            }}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
                         <FormControl size="small" fullWidth>
                             <InputLabel>Status</InputLabel>
                             <Select
@@ -434,7 +467,23 @@ const KanbanBoard = () => {
             }}>
                 {!isMobile && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                        <Typography variant="h2">Board</Typography>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                            <Typography variant="h2">Board</Typography>
+                            <TextField
+                                size="small"
+                                placeholder="Search..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <IconSearch size={16} />
+                                        </InputAdornment>
+                                    )
+                                }}
+                                sx={{ width: 200 }}
+                            />
+                        </Stack>
                         <Stack direction="row" spacing={2} alignItems="center">
                             <Button
                                 variant="outlined"
@@ -460,7 +509,7 @@ const KanbanBoard = () => {
                                 <IconRefresh size={18} />
                             </Button>
                             <FormControl size="small" sx={{ minWidth: 200 }}>
-                                <InputLabel>Filter by Super Board</InputLabel>
+                                <InputLabel>Filter by Boards</InputLabel>
                                 <Select
                                     value={filterSuperBoard}
                                     label="Filter by Super Board"
