@@ -14,15 +14,53 @@ import {
     query,
     onSnapshot,
     setDoc,
-    getDoc
+    getDoc,
+    orderBy,
+    startAfter,
+    limit,
+    where,
+    getDocs,
+    getCountFromServer
 } from "firebase/firestore";
 import {
     ref,
     uploadBytes,
     getDownloadURL
 } from "firebase/storage";
-import { auth, db, storage } from "../firebase-config";
-import { firebaseConfig } from "../firebase-config";
+import { getToken, onMessage } from "firebase/messaging";
+import { auth, db, storage, messaging, firebaseConfig } from "../firebase-config";
+
+// --- MESSAGING SERVICES ---
+
+export const requestForToken = async (userId) => {
+    try {
+        const currentToken = await getToken(messaging, {
+            vapidKey: 'BCzb_UsU23d-Ls9Y1MRrxYjwwBXrYlgWl9KuT94OFCLiAUkGWUNCdIiSmXN2sLaUg6JWB4n-PtzsgX5IlPWUDBs' // You might need a VAPID key here, or leave it blank if using default config
+        });
+
+        if (currentToken && userId) {
+            // Save token to database
+            const userRef = doc(db, "users", userId);
+            await updateDoc(userRef, {
+                fcmToken: currentToken
+            });
+            return currentToken;
+        } else {
+            console.log('No registration token available. Request permission to generate one.');
+            return null;
+        }
+    } catch (err) {
+        console.log('An error occurred while retrieving token. ', err);
+        return null;
+    }
+};
+
+export const onMessageListener = (callback) => {
+    return onMessage(messaging, (payload) => {
+        callback(payload);
+    });
+};
+
 
 // --- AUTH SERVICES ---
 
@@ -30,29 +68,24 @@ export const signup = async (email, password, name, role = 'user') => {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     const user = result.user;
 
-    // Create user document in Firestore
     await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         name,
         email,
-        role, // 'admin' or 'user'
-        avatar: '', // Optional
+        role,
+        avatar: '',
         createdAt: new Date().toISOString()
     });
 
     return user;
 };
 
-
-
-
 export const ensureAdminRole = async (uid, email) => {
-    // Force write role='admin' to Firestore if it's the super admin
     const userRef = doc(db, "users", uid);
     await setDoc(userRef, {
         uid,
         email,
-        name: 'Admin', // Default name
+        name: 'Admin',
         role: 'admin',
         updatedAt: new Date().toISOString()
     }, { merge: true });
@@ -99,7 +132,6 @@ export const getUserProfile = async (uid) => {
 
 // --- DATA SERVICES (TICKETS) ---
 
-// Real-time listener for tickets
 export const subscribeToTickets = (callback) => {
     const q = query(collection(db, "tickets"));
     return onSnapshot(q, (querySnapshot) => {
@@ -107,14 +139,12 @@ export const subscribeToTickets = (callback) => {
         querySnapshot.forEach((doc) => {
             tickets.push({ id: doc.id, ...doc.data() });
         });
-        console.log("Fetched Tickets:", tickets);
         callback(tickets);
     }, (error) => {
         console.error("Error subscribing to tickets:", error);
     });
 };
 
-// Real-time listener for users
 export const subscribeToUsers = (callback) => {
     const q = query(collection(db, "users"));
     return onSnapshot(q, (querySnapshot) => {
@@ -122,14 +152,12 @@ export const subscribeToUsers = (callback) => {
         querySnapshot.forEach((doc) => {
             users.push({ id: doc.id, ...doc.data() });
         });
-        console.log("Fetched Users:", users);
         callback(users);
     }, (error) => {
         console.error("Error subscribing to users:", error);
     });
 };
 
-// Real-time listener for user profile
 export const subscribeToUserProfile = (uid, callback) => {
     return onSnapshot(doc(db, "users", uid), (doc) => {
         if (doc.exists()) {
@@ -143,13 +171,7 @@ export const subscribeToUserProfile = (uid, callback) => {
 // --- SUPER BOARD SERVICES ---
 
 export const createSuperBoard = async (nameOrData, createdBy) => {
-    let data = {};
-    if (typeof nameOrData === 'object') {
-        data = { ...nameOrData };
-    } else {
-        data = { name: nameOrData };
-    }
-
+    let data = typeof nameOrData === 'object' ? { ...nameOrData } : { name: nameOrData };
     return await addDoc(collection(db, "superBoards"), {
         ...data,
         createdBy,
@@ -218,8 +240,6 @@ export const deleteTicket = async (ticketId) => {
 
 // --- STORAGE SERVICES ---
 
-// --- STORAGE SERVICES ---
-
 export const uploadImage = async (file) => {
     if (!file) return null;
     const storageRef = ref(storage, `attachments/${Date.now()}_${file.name}`);
@@ -227,22 +247,10 @@ export const uploadImage = async (file) => {
     return await getDownloadURL(snapshot.ref);
 };
 
+export const uploadFile = uploadImage;
+
 // --- PAGINATION SERVICES ---
 
-import { startAfter, limit, where, orderBy, getDocs, getCountFromServer } from "firebase/firestore";
-
-/**
- * Fetch paginated data from Firestore
- * 
- * Strategy:
- * Since we need "Page Jump" functionality (Page 1 -> Page 5) and Firestore doesn't support 
- * 'offset' efficiently or in all SDK versions, we use a hybrid approach.
- * We fetch (pageIndex + 1) * pageSize items and return the last 'pageSize' items.
- * For typical Admin Dashboard use cases where users rarely go beyond page 10, this is acceptable.
- * 
- * @param {string} collectionName 
- * @param {Object} options 
- */
 export const getPaginatedData = async (collectionName, {
     pageSize = 10,
     pageIndex = 0,
@@ -250,39 +258,26 @@ export const getPaginatedData = async (collectionName, {
     orderByField = 'createdAt',
     orderDirection = 'desc'
 } = {}) => {
-
     const collectionRef = collection(db, collectionName);
     let q = query(collectionRef);
 
-    // Apply Filters
     filters.forEach(filter => {
         if (filter.value !== undefined && filter.value !== null && filter.value !== '') {
             q = query(q, where(filter.field, filter.operator, filter.value));
         }
     });
 
-    // Apply Sorting
     q = query(q, orderBy(orderByField, orderDirection));
-
-    // Apply Pagination (Limit Strategy for Random Access)
-    // We fetch all items up to the end of the requested page
     const limitCount = (pageIndex + 1) * pageSize;
     q = query(q, limit(limitCount));
 
     const snapshot = await getDocs(q);
     const allDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // If we are on page 0, return all (which is just pageSize)
-    if (pageIndex === 0) {
-        return allDocs;
-    }
+    if (pageIndex === 0) return allDocs;
 
-    // For page > 0, we slice the last 'pageSize' items
     const startIndex = pageIndex * pageSize;
-    // If we don't have enough items to fill previous pages, we return empty or partial
-    if (allDocs.length <= startIndex) {
-        return [];
-    }
+    if (allDocs.length <= startIndex) return [];
 
     return allDocs.slice(startIndex, startIndex + pageSize);
 };
@@ -290,15 +285,96 @@ export const getPaginatedData = async (collectionName, {
 export const getCount = async (collectionName, filters = []) => {
     const collectionRef = collection(db, collectionName);
     let q = query(collectionRef);
-
-    // Apply Filters
     filters.forEach(filter => {
         if (filter.value !== undefined && filter.value !== null && filter.value !== '') {
             q = query(q, where(filter.field, filter.operator, filter.value));
         }
     });
-
     const snapshot = await getCountFromServer(q);
     return snapshot.data().count;
 };
 
+// --- CHAT SERVICES ---
+
+export const sendChatMessage = async (text, user, media = null) => {
+    if ((!text && !media) || !user) return;
+
+
+    // 2. Save message to Firestore
+    await addDoc(collection(db, "chat_messages"), {
+        text: text || '',
+        media: media || null,
+        senderId: user.uid,
+        senderName: user.name || 'Unknown',
+        senderAvatar: user.avatar || '',
+        createdAt: new Date().toISOString(),
+        readBy: [user.uid]
+    });
+};
+
+export const subscribeToChatMessages = (callback) => {
+    const q = query(collection(db, "chat_messages"), orderBy('createdAt', 'asc'));
+    return onSnapshot(q, (querySnapshot) => {
+        const messages = [];
+        querySnapshot.forEach((doc) => {
+            messages.push({ id: doc.id, ...doc.data() });
+        });
+        callback(messages);
+    }, (error) => {
+        console.error("Error subscribing to chat:", error);
+    });
+};
+
+export const markMessageAsRead = async (messageId, userId) => {
+    const { arrayUnion } = await import("firebase/firestore");
+    const messageRef = doc(db, "chat_messages", messageId);
+    await updateDoc(messageRef, {
+        readBy: arrayUnion(userId)
+    });
+};
+
+export const markAllMessagesAsRead = async (messages, userId) => {
+    const { arrayUnion, writeBatch } = await import("firebase/firestore");
+    const batch = writeBatch(db);
+    let updateCount = 0;
+
+    messages.forEach(msg => {
+        if (!msg.readBy?.includes(userId)) {
+            const msgRef = doc(db, "chat_messages", msg.id);
+            batch.update(msgRef, {
+                readBy: arrayUnion(userId)
+            });
+            updateCount++;
+        }
+    });
+
+    if (updateCount > 0) await batch.commit();
+};
+
+export const setTypingStatus = async (user, isTyping) => {
+    if (!user) return;
+    const typingRef = doc(db, "chat_typing", user.uid);
+    if (isTyping) {
+        await setDoc(typingRef, {
+            uid: user.uid,
+            name: user.name || 'Unknown',
+            isTyping: true,
+            updatedAt: new Date().toISOString()
+        });
+    } else {
+        await deleteDoc(typingRef);
+    }
+};
+
+export const subscribeToTypingStatus = (callback) => {
+    const q = query(collection(db, "chat_typing"));
+    return onSnapshot(q, (snapshot) => {
+        const typingUsers = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const diff = new Date() - new Date(data.updatedAt);
+            if (diff < 10000) typingUsers.push(data);
+        });
+        callback(typingUsers);
+    });
+};

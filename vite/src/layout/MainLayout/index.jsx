@@ -16,6 +16,7 @@ import MainContentStyled from './MainContentStyled';
 import Customization from '../Customization';
 import Loader from 'ui-component/Loader';
 import Breadcrumbs from 'ui-component/extended/Breadcrumbs';
+import ChatWidget from 'ui-component/chat/ChatWidget';
 
 import useConfig from 'hooks/useConfig';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
@@ -25,6 +26,7 @@ import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 export default function MainLayout() {
   const theme = useTheme();
   const downMD = useMediaQuery(theme.breakpoints.down('md'));
+
 
   const {
     state: { borderRadius, miniDrawer }
@@ -39,6 +41,8 @@ export default function MainLayout() {
   useEffect(() => {
     downMD && handlerDrawerOpen(false);
   }, [downMD]);
+
+
 
   // horizontal menu-list bar : drawer
 
@@ -66,6 +70,7 @@ export default function MainLayout() {
         </Box>
       </MainContentStyled>
       <Customization />
+      <ChatWidget />
     </Box>
   );
 }

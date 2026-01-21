@@ -1,7 +1,7 @@
 import { createContext, useState, useContext, useEffect } from 'react';
 import { auth } from '../firebase-config';
 import { onAuthStateChanged } from 'firebase/auth';
-import { login as firebaseLogin, logout as firebaseLogout, subscribeToUserProfile, ensureAdminRole } from '../services/firebase';
+import { login as firebaseLogin, logout as firebaseLogout, subscribeToUserProfile, ensureAdminRole, updateUser, requestForToken } from '../services/firebase';
 
 import Loader from 'ui-component/Loader';
 
@@ -28,16 +28,22 @@ export const AuthProvider = ({ children }) => {
 
         const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
             if (firebaseUser) {
+                // Request FCM Token (ask for permission)
+                requestForToken(firebaseUser.uid);
+
                 // Subscribe to real-time profile updates
                 profileUnsubscribe = subscribeToUserProfile(firebaseUser.uid, async (profile) => {
                     let updatedUser;
                     if (profile) {
-                        // Checks for admin role
+                        //  Checks for admin role
                         if (firebaseUser.email === 'info@applatus.com' && profile.role !== 'admin') {
                             await ensureAdminRole(firebaseUser.uid, firebaseUser.email);
                         }
                         updatedUser = { ...firebaseUser, ...profile };
+
+
                     } else {
+                        console.log("firebaseUser", firebaseUser);
                         updatedUser = firebaseUser;
                         // Auto-create logic if needed
                     }
